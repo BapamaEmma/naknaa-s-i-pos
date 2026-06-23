@@ -4,16 +4,16 @@ import naknaaLogo from '@/assets/naknaa-logo.png'
 
 export function AuthLayout() {
   return (
-    <div className="flex h-full flex-col items-center justify-center overflow-y-auto bg-muted/40 p-4">
-      <div className="mb-8 flex flex-col items-center gap-3 text-center">
-        <div className="rounded-2xl bg-black p-4 shadow-lg">
-          <img
-            src={naknaaLogo}
-            alt={APP_NAME}
-            className="h-auto w-full max-w-[280px] object-contain"
-          />
-        </div>
-        <p className="text-sm text-muted-foreground">POS & Inventory Management System</p>
+    <div className="flex min-h-[100dvh] flex-col items-center justify-center overflow-y-auto bg-muted/40 p-4 pb-safe safe-top">
+      <div className="mb-6 flex w-full max-w-md flex-col items-center gap-3 text-center sm:mb-8">
+        <img
+          src={naknaaLogo}
+          alt={APP_NAME}
+          className="h-auto w-full max-w-[220px] object-contain sm:max-w-[280px]"
+        />
+        <p className="text-base font-bold text-foreground sm:text-lg">
+          POS & Inventory Management System
+        </p>
       </div>
       <div className="w-full max-w-md">
         <Outlet />

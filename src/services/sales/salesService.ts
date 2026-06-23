@@ -14,6 +14,7 @@ import type {
 import type { InventoryRecord } from '@/features/inventory/types'
 import { DEFAULT_BRANCH_ID } from '@/features/inventory/constants'
 import { customerService } from '@/services/customers/customerService'
+import { userService } from '@/services/users/userService'
 import { BRANCHES_STORAGE_KEY, INVENTORY_STORAGE_KEY, SEED_BRANCHES, SEED_INVENTORY } from '@/services/inventory/mock-data'
 import { inventoryService } from '@/services/inventory/inventoryService'
 import { SEED_PRODUCTS, SEED_VARIANTS } from '@/services/products/mock-data'
@@ -242,7 +243,14 @@ export const salesService = {
 
   async getCashiers(): Promise<CashierOption[]> {
     await delay(100)
-    return [{ id: 'demo-admin', name: 'NakNaa Admin' }]
+    const result = await userService.getUsers({ status: 'active', limit: 100 })
+
+    return result.data
+      .filter((user) => user.roleId === 'cashier' || user.roleId === 'administrator')
+      .map((user) => ({
+        id: user.id,
+        name: user.fullName,
+      }))
   },
 
   async getSalesSummary(): Promise<SalesDashboardSummary> {

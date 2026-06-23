@@ -1,15 +1,9 @@
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner'
-import { BranchPerformanceChart } from '@/features/dashboard/components/BranchPerformanceChart'
 import { DashboardStatsCard } from '@/features/dashboard/components/DashboardStatsCard'
-import { InventoryOverviewCards } from '@/features/dashboard/components/InventoryOverviewCards'
-import { LowStockTable } from '@/features/dashboard/components/LowStockTable'
-import { NotificationPanel } from '@/features/dashboard/components/NotificationPanel'
 import { PaymentMethodChart } from '@/features/dashboard/components/PaymentMethodChart'
-import { QuickActionsCard } from '@/features/dashboard/components/QuickActionsCard'
 import { RecentSalesTable } from '@/features/dashboard/components/RecentSalesTable'
 import { SalesChart } from '@/features/dashboard/components/SalesChart'
-import { TopProductsTable } from '@/features/dashboard/components/TopProductsTable'
-import { WelcomeSection } from '@/features/dashboard/components/WelcomeSection'
+import { StockSummaryCard } from '@/features/dashboard/components/StockSummaryCard'
 import { useDashboard } from '@/features/dashboard/hooks/use-dashboard'
 
 export function DashboardPage() {
@@ -23,17 +17,14 @@ export function DashboardPage() {
     )
   }
 
-  return (
-    <div className="space-y-6 p-4 md:p-6">
-      <WelcomeSection />
+  const primaryKpis = data.kpis.slice(0, 4)
 
-      <section>
-        <h2 className="mb-4 text-lg font-semibold">Key Performance Indicators</h2>
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          {data.kpis.map((kpi) => (
-            <DashboardStatsCard key={kpi.id} kpi={kpi} />
-          ))}
-        </div>
+  return (
+    <div className="space-y-6 p-4 md:p-6 lg:p-8">
+      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        {primaryKpis.map((kpi, index) => (
+          <DashboardStatsCard key={kpi.id} kpi={kpi} index={index} />
+        ))}
       </section>
 
       <section className="grid gap-6 xl:grid-cols-3">
@@ -43,30 +34,11 @@ export function DashboardPage() {
         <PaymentMethodChart data={data.paymentMethods} />
       </section>
 
-      <section className="grid gap-6 lg:grid-cols-3">
-        <div className="lg:col-span-2">
-          <TopProductsTable products={data.topProducts} />
+      <section className="grid gap-6 xl:grid-cols-3">
+        <div className="xl:col-span-2">
+          <RecentSalesTable sales={data.recentSales} />
         </div>
-        <QuickActionsCard />
-      </section>
-
-      <section className="grid gap-6 lg:grid-cols-2">
-        <LowStockTable items={data.lowStockItems} />
-        <RecentSalesTable sales={data.recentSales} />
-      </section>
-
-      <section>
-        <h2 className="mb-4 text-lg font-semibold">Branch Performance</h2>
-        <BranchPerformanceChart branches={data.branchPerformance} />
-      </section>
-
-      <section>
-        <h2 className="mb-4 text-lg font-semibold">Inventory Overview</h2>
-        <InventoryOverviewCards overview={data.inventoryOverview} />
-      </section>
-
-      <section>
-        <NotificationPanel notifications={data.notifications} />
+        <StockSummaryCard overview={data.inventoryOverview} />
       </section>
     </div>
   )

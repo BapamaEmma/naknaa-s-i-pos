@@ -1,4 +1,13 @@
 {
   "typescript.tsdk": "node_modules/typescript/lib",
-  "typescript.enablePromptUseWorkspaceTsdk": true
+  "typescript.enablePromptUseWorkspaceTsdk": true,
+  "git.autoRepositoryDetection": true,
+  "git.openRepositoryInParentFolders": "never",
+  "git.repositoryScanMaxDepth": 1,
+  "git.ignoredRepositories": [
+    "/Users/gadgetvilla"
+  ],
+  "git.scanRepositories": [
+    "/Users/gadgetvilla/Desktop/NakNaa S&I POS"
+  ]
 }

@@ -37,9 +37,9 @@ export function LowStockTable({ items }: LowStockTableProps) {
               <TableHeader>
                 <TableRow>
                   <TableHead>Product</TableHead>
-                  <TableHead>Variant</TableHead>
-                  <TableHead className="text-right">Current Stock</TableHead>
-                  <TableHead className="text-right">Minimum Stock</TableHead>
+                  <TableHead className="hidden sm:table-cell">Variant</TableHead>
+                  <TableHead className="text-right">Stock</TableHead>
+                  <TableHead className="hidden md:table-cell text-right">Min</TableHead>
                   <TableHead>Status</TableHead>
                 </TableRow>
               </TableHeader>
@@ -50,9 +50,9 @@ export function LowStockTable({ items }: LowStockTableProps) {
                     className={cn(item.isCritical && 'bg-red-50/70 dark:bg-red-950/20')}
                   >
                     <TableCell className="font-medium">{item.productName}</TableCell>
-                    <TableCell>{item.variantName}</TableCell>
+                    <TableCell className="hidden sm:table-cell">{item.variantName}</TableCell>
                     <TableCell className="text-right">{item.currentStock}</TableCell>
-                    <TableCell className="text-right">{item.minimumStock}</TableCell>
+                    <TableCell className="hidden text-right md:table-cell">{item.minimumStock}</TableCell>
                     <TableCell>
                       <Badge variant={item.isCritical ? 'destructive' : 'warning'}>
                         {item.isCritical ? 'Critical' : 'Low Stock'}

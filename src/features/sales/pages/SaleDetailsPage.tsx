@@ -82,7 +82,7 @@ export function SaleDetailsPage() {
               <PaymentMethodBadge method={sale.paymentMethod} />
             </div>
             <div className="flex justify-between gap-4">
-              <span className="text-muted-foreground">Cashier</span>
+              <span className="text-muted-foreground">Sold by</span>
               <span>{sale.cashierName}</span>
             </div>
             <div className="flex justify-between gap-4">

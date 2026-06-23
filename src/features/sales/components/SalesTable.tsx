@@ -44,7 +44,7 @@ export function SalesTable({ data, isLoading }: SalesTableProps) {
           <TableRow>
             <TableHead>Receipt Number</TableHead>
             <TableHead>Customer</TableHead>
-            <TableHead>Cashier</TableHead>
+            <TableHead>Sold by</TableHead>
             <TableHead>Payment Method</TableHead>
             <TableHead className="text-right">Total Amount</TableHead>
             <TableHead>Date</TableHead>

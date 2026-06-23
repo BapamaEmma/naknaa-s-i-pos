@@ -85,10 +85,6 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
       >
         {isLoading ? <LoadingSpinner size="sm" className="border-primary-foreground border-t-transparent" /> : 'Sign in'}
       </button>
-
-      <p className="text-center text-xs text-muted-foreground">
-        Demo: {MOCK_CREDENTIALS.admin.email} / {MOCK_CREDENTIALS.admin.password}
-      </p>
     </form>
   )
 }

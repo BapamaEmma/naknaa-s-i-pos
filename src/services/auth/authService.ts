@@ -1,4 +1,5 @@
 import { STORAGE_KEYS } from '@/constants'
+import { normalizeUserRole } from '@/constants/roles'
 import type { AuthResponse } from '@/types/auth'
 import type { User } from '@/types/user'
 
@@ -6,7 +7,11 @@ function parseStoredUser(raw: string | null): User | null {
   if (!raw) return null
 
   try {
-    return JSON.parse(raw) as User
+    const user = JSON.parse(raw) as User
+    return {
+      ...user,
+      role: normalizeUserRole(user.role),
+    }
   } catch {
     return null
   }

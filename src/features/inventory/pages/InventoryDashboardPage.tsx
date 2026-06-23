@@ -13,6 +13,7 @@ import {
   useInventorySummary,
 } from '@/features/inventory/hooks/use-inventory'
 import type { InventoryListFilters } from '@/features/inventory/types'
+import { ProductLocator } from '@/features/warehouses'
 
 export function InventoryDashboardPage() {
   const [filters, setFilters] = useState<InventoryListFilters>({
@@ -42,6 +43,8 @@ export function InventoryDashboardPage() {
       )}
 
       <InventoryQuickActions />
+
+      <ProductLocator compact />
 
       <div className="space-y-4">
         <div>

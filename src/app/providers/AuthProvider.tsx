@@ -1,20 +1,54 @@
 import { createContext, useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
-import { USER_ROLES, type UserRole } from '@/constants/roles'
+import { USER_ROLES, normalizeUserRole, type UserRole } from '@/constants/roles'
 import { authService } from '@/services/auth/authService'
+import { userService } from '@/services/users/userService'
 import type { AuthContextValue, LoginCredentials } from '@/types/auth'
 import type { User } from '@/types/user'
 
 export const AuthContext = createContext<AuthContextValue | null>(null)
 
-const DEMO_USER: User = {
-  id: 'demo-admin',
+const DEMO_ADMIN: User = {
+  id: 'user-admin-001',
   email: 'admin@naknaa.com',
   firstName: 'NakNaa',
   lastName: 'Admin',
   role: USER_ROLES.ADMIN,
+  branchId: 'branch-main',
   isActive: true,
   createdAt: new Date().toISOString(),
   updatedAt: new Date().toISOString(),
+}
+
+async function resolveLoginUser(credentials: LoginCredentials): Promise<User> {
+  const email = credentials.email.trim().toLowerCase()
+  const users = await userService.getUsers({ limit: 100 })
+  const match = users.data.find((entry) => entry.email.toLowerCase() === email)
+
+  if (match) {
+    const detail = await userService.getUserById(match.id)
+
+    if (detail.status !== 'active') {
+      throw new Error('This account is not active.')
+    }
+
+    return {
+      id: detail.id,
+      email: detail.email,
+      firstName: detail.firstName,
+      lastName: detail.lastName,
+      role: normalizeUserRole(detail.roleId),
+      branchId: detail.branchId,
+      isActive: detail.status === 'active',
+      createdAt: detail.createdAt,
+      updatedAt: detail.updatedAt,
+    }
+  }
+
+  if (email === DEMO_ADMIN.email) {
+    return { ...DEMO_ADMIN, email: credentials.email.trim() }
+  }
+
+  throw new Error('Invalid email or password.')
 }
 
 interface AuthProviderProps {
@@ -35,14 +69,16 @@ export function AuthProvider({ children }: AuthProviderProps) {
     setIsLoading(true)
 
     try {
-      // Placeholder: replace with authService.login when API is ready
       await new Promise((resolve) => setTimeout(resolve, 600))
 
+      if (credentials.password !== 'password') {
+        throw new Error('Invalid email or password.')
+      }
+
+      const loggedInUser = await resolveLoginUser(credentials)
+
       const mockResponse = {
-        user: {
-          ...DEMO_USER,
-          email: credentials.email,
-        },
+        user: loggedInUser,
         tokens: {
           accessToken: 'demo-access-token',
           refreshToken: 'demo-refresh-token',

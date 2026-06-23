@@ -13,6 +13,7 @@ import { CUSTOMER_ROUTES } from '@/features/customers/constants'
 import { INVENTORY_ROUTES } from '@/features/inventory/constants'
 import { PRODUCT_ROUTES } from '@/features/products/constants'
 import { SALES_ROUTES } from '@/features/sales/constants'
+import { PURCHASE_ROUTES } from '@/features/purchases/constants'
 import { ROUTES } from '@/constants/routes'
 
 const actions = [
@@ -20,7 +21,7 @@ const actions = [
   { label: 'Add Product', href: PRODUCT_ROUTES.CREATE, icon: PackagePlus },
   { label: 'Stock In', href: INVENTORY_ROUTES.STOCK_IN, icon: Warehouse },
   { label: 'Add Customer', href: CUSTOMER_ROUTES.CREATE, icon: UserPlus },
-  { label: 'Create Purchase', href: ROUTES.PURCHASES, icon: Truck },
+  { label: 'Create Purchase', href: PURCHASE_ROUTES.CREATE, icon: Truck },
   { label: 'View Reports', href: ROUTES.REPORTS, icon: BarChart3 },
 ]
 

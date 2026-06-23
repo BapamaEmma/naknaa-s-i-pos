@@ -1,6 +1,6 @@
 import {
   Building2,
-  ClipboardList,
+  Boxes,
   FileBarChart,
   LayoutDashboard,
   Package,
@@ -12,10 +12,13 @@ import {
   Warehouse,
   UserCircle,
   ScrollText,
+  Wrench,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { ROUTES } from '@/constants/routes'
-import { USER_ROLES, type UserRole } from '@/constants/roles'
+import { USER_ROLES, SHOP_STAFF_ROLES, type UserRole } from '@/constants/roles'
+
+const shopStaff = SHOP_STAFF_ROLES
 
 export interface NavItem {
   title: string
@@ -29,19 +32,19 @@ export const MAIN_NAV_ITEMS: NavItem[] = [
     title: 'Dashboard',
     href: ROUTES.DASHBOARD,
     icon: LayoutDashboard,
-    roles: [USER_ROLES.ADMIN, USER_ROLES.STOREKEEPER],
+    roles: [USER_ROLES.ADMIN, ...shopStaff],
   },
   {
     title: 'Categories',
     href: ROUTES.CATEGORIES,
     icon: Tags,
-    roles: [USER_ROLES.ADMIN, USER_ROLES.STOREKEEPER],
+    roles: [USER_ROLES.ADMIN, ...shopStaff],
   },
   {
     title: 'Products',
     href: ROUTES.PRODUCTS,
     icon: Package,
-    roles: [USER_ROLES.ADMIN, USER_ROLES.STOREKEEPER],
+    roles: [USER_ROLES.ADMIN, ...shopStaff],
   },
   {
     title: 'Customers',
@@ -53,25 +56,31 @@ export const MAIN_NAV_ITEMS: NavItem[] = [
     title: 'Sales',
     href: ROUTES.SALES,
     icon: ShoppingCart,
-    roles: [USER_ROLES.ADMIN],
+    roles: [USER_ROLES.ADMIN, ...shopStaff],
   },
   {
     title: 'Inventory',
     href: ROUTES.INVENTORY,
     icon: Warehouse,
-    roles: [USER_ROLES.ADMIN, USER_ROLES.STOREKEEPER],
+    roles: [USER_ROLES.ADMIN, ...shopStaff],
+  },
+  {
+    title: 'Warehouses',
+    href: ROUTES.WAREHOUSES,
+    icon: Boxes,
+    roles: [USER_ROLES.ADMIN, ...shopStaff],
   },
   {
     title: 'Suppliers',
     href: ROUTES.SUPPLIERS,
     icon: Truck,
-    roles: [USER_ROLES.ADMIN, USER_ROLES.STOREKEEPER],
+    roles: [USER_ROLES.ADMIN, ...shopStaff],
   },
   {
-    title: 'Purchases',
-    href: ROUTES.PURCHASES,
-    icon: ClipboardList,
-    roles: [USER_ROLES.ADMIN, USER_ROLES.STOREKEEPER],
+    title: 'Services',
+    href: ROUTES.SERVICES,
+    icon: Wrench,
+    roles: [USER_ROLES.ADMIN, ...shopStaff],
   },
   {
     title: 'Reports',
@@ -127,7 +136,19 @@ export function canAccessRoute(role: UserRole, path: string): boolean {
   return navItem.roles.includes(role)
 }
 
-export function hasRole(userRole: UserRole, allowedRoles: UserRole | UserRole[]): boolean {
-  const roles = Array.isArray(allowedRoles) ? allowedRoles : [allowedRoles]
-  return roles.includes(userRole)
+export function getPageTitleFromPath(pathname: string): string {
+  const allItems = [...MAIN_NAV_ITEMS, ...ADMIN_NAV_ITEMS]
+  const match = allItems
+    .filter((item) => pathname === item.href || pathname.startsWith(`${item.href}/`))
+    .sort((a, b) => b.href.length - a.href.length)[0]
+
+  if (match?.href === ROUTES.DASHBOARD || pathname.startsWith(ROUTES.DASHBOARD)) {
+    return 'Dashboard Overview'
+  }
+
+  if (match) {
+    return match.title
+  }
+
+  return 'Dashboard Overview'
 }
