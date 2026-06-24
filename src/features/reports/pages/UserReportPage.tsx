@@ -4,7 +4,7 @@ import { ExportButtons } from '@/features/reports/components/ExportButtons'
 import { ReportPageLayout } from '@/features/reports/components/ReportPageLayout'
 import { ReportSummaryCards } from '@/features/reports/components/ReportSummaryCards'
 import { ReportTable } from '@/features/reports/components/ReportTable'
-import type { ReportFilters } from '@/features/reports/types'
+import type { ReportFilters, ReportTableColumn, UserReportRow } from '@/features/reports/types'
 import { useUserReport } from '@/features/reports/hooks/use-reports'
 import { reportFilterDefaults } from '@/services/reports/reportService'
 import { formatDateTime, formatNumber } from '@/lib/format'
@@ -91,13 +91,13 @@ export function UserReportPage() {
   )
 }
 
-const userColumns = [
+const userColumns: ReportTableColumn<UserReportRow>[] = [
   { key: 'userName', header: 'User' },
   { key: 'role', header: 'Role' },
-  { key: 'actions', header: 'Actions', render: (row: { actions: number }) => formatNumber(row.actions) },
+  { key: 'actions', header: 'Actions', render: (row) => formatNumber(row.actions) },
   {
     key: 'lastLogin',
     header: 'Last Login',
-    render: (row: { lastLogin: string | null }) => (row.lastLogin ? formatDateTime(row.lastLogin) : '—'),
+    render: (row) => (row.lastLogin ? formatDateTime(row.lastLogin) : '—'),
   },
-] as const
+]

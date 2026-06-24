@@ -18,7 +18,7 @@ import { PosCartPanel } from '@/features/sales/components/PosCartPanel'
 import { ProductGrid } from '@/features/sales/components/ProductGrid'
 import { ProductSearch } from '@/features/sales/components/ProductSearch'
 import { SalesStatsCards } from '@/features/sales/components/SalesStatsCards'
-import { DEFAULT_BRANCH_ID } from '@/features/inventory/constants'
+import { BACKEND_DEFAULT_BRANCH_ID } from '@/services/api/mappers'
 import { useInventoryBranches } from '@/features/inventory/hooks/use-inventory'
 import { WALK_IN_CUSTOMER, SALES_ROUTES } from '@/features/sales/constants'
 import {
@@ -36,7 +36,7 @@ export function PosSalesPage() {
   const navigate = useNavigate()
   const { user } = useAuth()
   const [search, setSearch] = useState('')
-  const [branchId, setBranchId] = useState(DEFAULT_BRANCH_ID)
+  const [branchId, setBranchId] = useState(BACKEND_DEFAULT_BRANCH_ID)
   const [cart, setCart] = useState<CartItem[]>([])
   const [cartOpen, setCartOpen] = useState(false)
   const [customerMode, setCustomerMode] = useState<CustomerMode>('walk_in')
@@ -55,6 +55,12 @@ export function PosSalesPage() {
   const { data: summary, isLoading: summaryLoading } = useSalesSummary()
   const { data: products = [], isLoading: productsLoading } = usePosProducts(search, branchId)
   const createSale = useCreateSale()
+
+  useEffect(() => {
+    if (branches.length > 0 && !branches.some((branch) => branch.id === branchId)) {
+      setBranchId(branches[0].id)
+    }
+  }, [branches, branchId])
 
   useEffect(() => {
     if (user) {

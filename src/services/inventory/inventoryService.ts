@@ -7,462 +7,314 @@ import type {
   InventoryListFilters,
   InventoryListItem,
   InventoryListResult,
-  InventoryRecord,
   InventoryStatus,
   InventoryTransaction,
   ProductOption,
+  SaleStockDeductionInput,
   StockInInput,
   StockOutInput,
-  SaleStockDeductionInput,
+  TransactionType,
   VariantOption,
 } from '@/features/inventory/types'
-import { DEFAULT_BRANCH_ID } from '@/features/inventory/constants'
-import { CATEGORY_STORAGE_KEY, SEED_CATEGORIES } from '@/services/categories/mock-data'
-import {
-  BRANCHES_STORAGE_KEY,
-  INVENTORY_STORAGE_KEY,
-  INVENTORY_TRANSACTIONS_KEY,
-  SEED_BRANCHES,
-  SEED_INVENTORY,
-  SEED_TRANSACTIONS,
-} from '@/services/inventory/mock-data'
-import { SEED_PRODUCTS, SEED_VARIANTS } from '@/services/products/mock-data'
-import { delay, MOCK_STORAGE_KEYS, readStorage, writeStorage } from '@/services/products/storage'
+import { API_ENDPOINTS } from '@/services/api/endpoints'
+import { apiGet, apiPost, apiPut, toPagedMeta } from '@/services/api/http'
+import { mapProductListItem, mapProductVariant } from '@/services/api/mappers'
+import type { PagedResult } from '@/services/api/types'
 
-function loadInventory(): InventoryRecord[] {
-  return readStorage(INVENTORY_STORAGE_KEY, SEED_INVENTORY)
+function mapBranch(dto: Record<string, unknown>): Branch {
+  const status = dto.status
+  const isActive =
+    status === 1 ||
+    status === 'Active' ||
+    status === 'active' ||
+    dto.isActive === true ||
+    status === undefined
+
+  return {
+    id: String(dto.id),
+    name: String(dto.branchName ?? dto.name ?? ''),
+    code: String(dto.branchCode ?? dto.code ?? ''),
+    isActive,
+  }
 }
 
-function saveInventory(records: InventoryRecord[]): void {
-  writeStorage(INVENTORY_STORAGE_KEY, records)
-}
-
-function loadTransactions(): InventoryTransaction[] {
-  return readStorage(INVENTORY_TRANSACTIONS_KEY, SEED_TRANSACTIONS)
-}
-
-function saveTransactions(transactions: InventoryTransaction[]): void {
-  writeStorage(INVENTORY_TRANSACTIONS_KEY, transactions)
-}
-
-function loadProducts() {
-  return readStorage(MOCK_STORAGE_KEYS.PRODUCTS, SEED_PRODUCTS)
-}
-
-function loadVariants() {
-  return readStorage(MOCK_STORAGE_KEYS.VARIANTS, SEED_VARIANTS)
-}
-
-function loadCategories() {
-  return readStorage(CATEGORY_STORAGE_KEY, SEED_CATEGORIES)
-}
-
-function loadBranches(): Branch[] {
-  return readStorage(BRANCHES_STORAGE_KEY, SEED_BRANCHES)
-}
-
-function getStatus(quantity: number, minimumStockLevel: number): InventoryStatus {
-  if (quantity === 0) return 'out_of_stock'
-  if (quantity <= minimumStockLevel) return 'low_stock'
+function mapInventoryStatus(value: unknown): InventoryStatus {
+  const normalized = String(value ?? 'in_stock').toLowerCase()
+  if (normalized === 'out_of_stock') return 'out_of_stock'
+  if (normalized === 'low_stock') return 'low_stock'
   return 'in_stock'
 }
 
-function generateReferenceNumber(): string {
-  const stamp = new Date().toISOString().slice(0, 10).replace(/-/g, '')
-  const suffix = Math.floor(Math.random() * 900 + 100)
-  return `INV-${stamp}-${suffix}`
-}
-
-function syncVariantStock(productVariantId: string, quantity: number, minimumStockLevel: number): void {
-  const variants = loadVariants()
-  const index = variants.findIndex((variant) => variant.id === productVariantId)
-  if (index === -1) return
-
-  variants[index] = {
-    ...variants[index],
-    currentStock: quantity,
-    minimumStock: minimumStockLevel,
-    updatedAt: new Date().toISOString(),
-  }
-
-  writeStorage(MOCK_STORAGE_KEYS.VARIANTS, variants)
-}
-
-function enrichInventoryRecord(record: InventoryRecord): InventoryListItem | null {
-  const variant = loadVariants().find((entry) => entry.id === record.productVariantId)
-  const product = variant ? loadProducts().find((entry) => entry.id === variant.productId) : null
-  const category = product ? loadCategories().find((entry) => entry.id === product.categoryId) : null
-  const branch = loadBranches().find((entry) => entry.id === record.branchId)
-
-  if (!variant || !product || !branch) return null
-
+function mapInventoryListItem(dto: Record<string, unknown>): InventoryListItem {
   return {
-    ...record,
-    productId: product.id,
-    productName: product.name,
-    variantName: variant.name,
-    variantType: variant.variantType,
-    categoryId: product.categoryId,
-    categoryName: category?.name ?? 'Unknown',
-    brand: product.brand,
-    sku: product.sku,
-    branchName: branch.name,
-    unitCost: variant.costPrice,
-    status: getStatus(record.quantity, record.minimumStockLevel),
-    stockValue: record.quantity * variant.costPrice,
+    id: String(dto.id),
+    branchId: String(dto.warehouseId ?? dto.branchId ?? ''),
+    productVariantId: String(dto.productVariantId),
+    quantity: Number(dto.quantity ?? 0),
+    minimumStockLevel: Number(dto.minimumStockLevel ?? 0),
+    lastUpdated: String(dto.lastUpdated ?? new Date().toISOString()),
+    productId: String(dto.productId ?? ''),
+    productName: String(dto.productName ?? ''),
+    variantName: String(dto.variantName ?? ''),
+    variantType: String(dto.variantValue ?? dto.variantType ?? ''),
+    categoryId: String(dto.categoryId ?? ''),
+    categoryName: String(dto.categoryName ?? ''),
+    brand: String(dto.brand ?? ''),
+    sku: String(dto.productCode ?? dto.sku ?? ''),
+    branchName: String(dto.warehouseName ?? dto.branchName ?? ''),
+    unitCost: Number(dto.unitCost ?? 0),
+    status: mapInventoryStatus(dto.status),
+    stockValue: Number(dto.stockValue ?? 0),
   }
 }
 
-function findOrCreateInventoryRecord(
-  branchId: string,
-  productVariantId: string,
-): InventoryRecord {
-  const records = loadInventory()
-  const existing = records.find(
-    (record) => record.branchId === branchId && record.productVariantId === productVariantId,
-  )
-
-  if (existing) return existing
-
-  const variant = loadVariants().find((entry) => entry.id === productVariantId)
-  const created: InventoryRecord = {
-    id: `inv-${productVariantId}-${branchId}`,
-    branchId,
-    productVariantId,
-    quantity: 0,
-    minimumStockLevel: variant?.minimumStock ?? 0,
-    lastUpdated: new Date().toISOString(),
-  }
-
-  saveInventory([created, ...records])
-  return created
+function mapTransactionType(value: unknown): TransactionType {
+  if (value === 1 || value === 'StockIn' || value === 'stock_in') return 'stock_in'
+  if (value === 2 || value === 'StockOut' || value === 'stock_out') return 'stock_out'
+  if (value === 3 || value === 'Adjustment' || value === 'adjustment') return 'adjustment'
+  if (value === 4 || value === 'PurchaseReceive' || value === 'purchase') return 'purchase'
+  if (value === 5 || value === 'Sale' || value === 'sale') return 'sale'
+  if (value === 6 || value === 'Transfer' || value === 'transfer') return 'transfer'
+  return 'adjustment'
 }
 
-function appendTransaction(
-  record: InventoryRecord,
-  input: {
-    transactionType: InventoryTransaction['transactionType']
-    quantity: number
-    previousQuantity: number
-    newQuantity: number
-    unitCost?: number
-    supplier?: string
-    reason?: string
-    notes?: string
-    userId: string
-    userName: string
-  },
-): InventoryTransaction {
-  const enriched = enrichInventoryRecord(record)
-  if (!enriched) {
-    throw new Error('Unable to resolve inventory item details')
+function mapInventoryTransaction(dto: Record<string, unknown>): InventoryTransaction {
+  return {
+    id: String(dto.id),
+    inventoryId: String(dto.inventoryId ?? dto.id ?? ''),
+    branchId: String(dto.warehouseId ?? dto.branchId ?? ''),
+    productId: String(dto.productId ?? ''),
+    productVariantId: String(dto.productVariantId),
+    productName: String(dto.productName ?? ''),
+    variantName: String(dto.variantName ?? ''),
+    branchName: String(dto.warehouseName ?? dto.branchName ?? ''),
+    transactionType: mapTransactionType(dto.transactionType),
+    quantity: Number(dto.quantity ?? 0),
+    previousQuantity: Number(dto.quantityBefore ?? dto.previousQuantity ?? 0),
+    newQuantity: Number(dto.quantityAfter ?? dto.newQuantity ?? 0),
+    unitCost: dto.unitCost !== undefined ? Number(dto.unitCost) : undefined,
+    supplier: dto.supplier ? String(dto.supplier) : undefined,
+    reason: dto.reason ? String(dto.reason) : undefined,
+    notes: dto.notes ? String(dto.notes) : undefined,
+    userId: String(dto.userId ?? ''),
+    userName: String(dto.userName ?? ''),
+    referenceNumber: String(dto.referenceNumber ?? ''),
+    createdAt: String(dto.createdAt ?? new Date().toISOString()),
   }
-
-  const transaction: InventoryTransaction = {
-    id: crypto.randomUUID(),
-    inventoryId: record.id,
-    branchId: record.branchId,
-    productId: enriched.productId,
-    productVariantId: record.productVariantId,
-    productName: enriched.productName,
-    variantName: enriched.variantName,
-    branchName: enriched.branchName,
-    transactionType: input.transactionType,
-    quantity: input.quantity,
-    previousQuantity: input.previousQuantity,
-    newQuantity: input.newQuantity,
-    unitCost: input.unitCost,
-    supplier: input.supplier,
-    reason: input.reason,
-    notes: input.notes,
-    userId: input.userId,
-    userName: input.userName,
-    referenceNumber: generateReferenceNumber(),
-    createdAt: new Date().toISOString(),
-  }
-
-  saveTransactions([transaction, ...loadTransactions()])
-  return transaction
 }
 
-function updateInventoryRecord(record: InventoryRecord, quantity: number): InventoryRecord {
-  const records = loadInventory()
-  const index = records.findIndex((entry) => entry.id === record.id)
-  const updated: InventoryRecord = {
-    ...record,
-    quantity,
-    lastUpdated: new Date().toISOString(),
+function buildInventoryQueryParams(filters: InventoryListFilters): Record<string, string | number> {
+  const params: Record<string, string | number> = {
+    page: filters.page ?? 1,
+    pageSize: filters.limit ?? 10,
   }
 
-  if (index === -1) {
-    saveInventory([updated, ...records])
-  } else {
-    records[index] = updated
-    saveInventory(records)
+  if (filters.search?.trim()) {
+    params.search = filters.search.trim()
   }
 
-  if (record.branchId === DEFAULT_BRANCH_ID) {
-    syncVariantStock(record.productVariantId, quantity, record.minimumStockLevel)
+  if (filters.categoryId) {
+    params.categoryId = filters.categoryId
   }
 
-  return updated
+  if (filters.branchId) {
+    params.warehouseId = filters.branchId
+  }
+
+  if (filters.status && filters.status !== 'all') {
+    params.status = filters.status
+  }
+
+  return params
 }
 
-function filterInventoryItems(
-  items: InventoryListItem[],
-  filters: InventoryListFilters,
-): InventoryListItem[] {
-  const search = filters.search?.trim().toLowerCase()
+function buildHistoryQueryParams(filters: InventoryHistoryFilters): Record<string, string | number> {
+  const params: Record<string, string | number> = {
+    page: filters.page ?? 1,
+    pageSize: filters.limit ?? 10,
+  }
 
-  return items.filter((item) => {
-    const matchesSearch =
-      !search ||
-      item.productName.toLowerCase().includes(search) ||
-      item.variantName.toLowerCase().includes(search) ||
-      item.sku.toLowerCase().includes(search) ||
-      item.brand.toLowerCase().includes(search)
+  if (filters.search?.trim()) {
+    params.search = filters.search.trim()
+  }
 
-    const matchesCategory = !filters.categoryId || item.categoryId === filters.categoryId
-    const matchesBranch = !filters.branchId || item.branchId === filters.branchId
-    const matchesStatus = !filters.status || filters.status === 'all' || item.status === filters.status
+  if (filters.branchId) {
+    params.warehouseId = filters.branchId
+  }
 
-    return matchesSearch && matchesCategory && matchesBranch && matchesStatus
-  })
+  if (filters.productId) {
+    params.productVariantId = filters.productId
+  }
+
+  if (filters.transactionType && filters.transactionType !== 'all') {
+    const typeMap: Record<TransactionType, number> = {
+      stock_in: 1,
+      stock_out: 2,
+      adjustment: 3,
+      purchase: 4,
+      sale: 5,
+      transfer: 6,
+    }
+    params.transactionType = typeMap[filters.transactionType]
+  }
+
+  if (filters.dateFrom) {
+    params.dateFrom = filters.dateFrom
+  }
+
+  if (filters.dateTo) {
+    params.dateTo = filters.dateTo
+  }
+
+  return params
 }
 
 export const inventoryService = {
   async getBranches(): Promise<Branch[]> {
-    await delay(150)
-    return loadBranches().filter((branch) => branch.isActive)
+    const result = await apiGet<Record<string, unknown>[]>(API_ENDPOINTS.branches)
+    return result.map((item) => mapBranch(item)).filter((branch) => branch.isActive)
   },
 
   async getProductOptions(): Promise<ProductOption[]> {
-    await delay(150)
-    return loadProducts()
-      .filter((product) => product.isActive)
-      .map((product) => ({ id: product.id, name: product.name, sku: product.sku }))
+    const result = await apiGet<PagedResult<Record<string, unknown>>>(API_ENDPOINTS.products, {
+      params: { page: 1, pageSize: 500, isActive: true },
+    })
+
+    return result.items
+      .map((item) => {
+        const product = mapProductListItem(item)
+        return { id: product.id, name: product.name, sku: product.sku }
+      })
       .sort((left, right) => left.name.localeCompare(right.name))
   },
 
   async getVariantOptions(productId: string, branchId?: string): Promise<VariantOption[]> {
-    await delay(150)
-    const inventory = loadInventory()
+    const variants = await apiGet<Record<string, unknown>[]>(
+      API_ENDPOINTS.productVariants(productId),
+    )
 
-    return loadVariants()
-      .filter((variant) => variant.productId === productId && variant.isActive)
-      .map((variant) => {
-        const record = inventory.find(
-          (entry) =>
-            entry.productVariantId === variant.id &&
-            (!branchId || entry.branchId === branchId),
+    const inventory = branchId
+      ? await apiGet<PagedResult<Record<string, unknown>>>(API_ENDPOINTS.inventory, {
+          params: { warehouseId: branchId, page: 1, pageSize: 500 },
+        })
+      : null
+
+    return variants
+      .filter((item) => item.isActive !== false)
+      .map((item) => {
+        const variant = mapProductVariant(item)
+        const record = inventory?.items.find(
+          (entry) => String(entry.productVariantId) === variant.id,
         )
 
         return {
           id: variant.id,
           productId: variant.productId,
           name: variant.name,
-          currentQuantity: record?.quantity ?? 0,
-          minimumStock: record?.minimumStockLevel ?? variant.minimumStock,
+          currentQuantity: Number(record?.quantity ?? variant.currentStock ?? 0),
+          minimumStock: Number(record?.minimumStockLevel ?? variant.minimumStock ?? 0),
           unitCost: variant.costPrice,
         }
       })
   },
 
   async getInventorySummary(): Promise<InventoryDashboardSummary> {
-    await delay(200)
-
-    const items = loadInventory()
-      .map(enrichInventoryRecord)
-      .filter((item): item is InventoryListItem => Boolean(item))
-
-    const uniqueProducts = new Set(items.map((item) => item.productId))
-
+    const result = await apiGet<Record<string, unknown>>(API_ENDPOINTS.inventorySummary)
     return {
-      totalProducts: uniqueProducts.size,
-      totalStockQuantity: items.reduce((sum, item) => sum + item.quantity, 0),
-      inventoryValue: items.reduce((sum, item) => sum + item.stockValue, 0),
-      lowStockProducts: items.filter((item) => item.status === 'low_stock').length,
-      outOfStockProducts: items.filter((item) => item.status === 'out_of_stock').length,
+      totalProducts: Number(result.totalProducts ?? 0),
+      totalStockQuantity: Number(result.totalStockQuantity ?? 0),
+      inventoryValue: Number(result.inventoryValue ?? 0),
+      lowStockProducts: Number(result.lowStockProducts ?? 0),
+      outOfStockProducts: Number(result.outOfStockProducts ?? 0),
     }
   },
 
   async getInventory(filters: InventoryListFilters = {}): Promise<InventoryListResult> {
-    await delay()
+    const result = await apiGet<PagedResult<Record<string, unknown>>>(API_ENDPOINTS.inventory, {
+      params: buildInventoryQueryParams(filters),
+    })
 
-    const page = filters.page ?? 1
-    const limit = filters.limit ?? 10
-    const items = loadInventory()
-      .map(enrichInventoryRecord)
-      .filter((item): item is InventoryListItem => Boolean(item))
-
-    const filtered = filterInventoryItems(items, filters)
-    const total = filtered.length
-    const totalPages = Math.max(1, Math.ceil(total / limit))
-    const start = (page - 1) * limit
-
+    const paged = toPagedMeta(result, filters.limit ?? 10)
     return {
-      data: filtered.slice(start, start + limit),
-      meta: { page, limit, total, totalPages },
+      data: paged.data.map((item) => mapInventoryListItem(item)),
+      meta: paged.meta,
     }
   },
 
   async getInventoryById(id: string): Promise<InventoryListItem | null> {
-    await delay(150)
-    const record = loadInventory().find((entry) => entry.id === id)
-    return record ? enrichInventoryRecord(record) : null
+    const result = await apiGet<PagedResult<Record<string, unknown>>>(API_ENDPOINTS.inventory, {
+      params: { page: 1, pageSize: 1, search: id },
+    })
+
+    const match = result.items.find((item) => String(item.id) === id)
+    return match ? mapInventoryListItem(match) : null
   },
 
   async getLowStockProducts(filters: InventoryListFilters = {}): Promise<InventoryListResult> {
-    await delay()
+    const result = await apiGet<PagedResult<Record<string, unknown>>>(
+      API_ENDPOINTS.inventoryLowStock,
+      { params: buildInventoryQueryParams({ ...filters, status: 'all' }) },
+    )
 
-    const page = filters.page ?? 1
-    const limit = filters.limit ?? 10
-    const items = loadInventory()
-      .map(enrichInventoryRecord)
-      .filter((item): item is InventoryListItem => Boolean(item))
-      .filter((item) => item.status === 'low_stock' || item.status === 'out_of_stock')
-
-    const filtered = filterInventoryItems(items, { ...filters, status: 'all' })
-    const total = filtered.length
-    const totalPages = Math.max(1, Math.ceil(total / limit))
-    const start = (page - 1) * limit
-
+    const paged = toPagedMeta(result, filters.limit ?? 10)
     return {
-      data: filtered.slice(start, start + limit),
-      meta: { page, limit, total, totalPages },
+      data: paged.data.map((item) => mapInventoryListItem(item)),
+      meta: paged.meta,
     }
   },
 
   async getInventoryHistory(filters: InventoryHistoryFilters = {}): Promise<InventoryHistoryResult> {
-    await delay()
+    const result = await apiGet<PagedResult<Record<string, unknown>>>(
+      API_ENDPOINTS.inventoryHistory,
+      { params: buildHistoryQueryParams(filters) },
+    )
 
-    const page = filters.page ?? 1
-    const limit = filters.limit ?? 10
-    const search = filters.search?.trim().toLowerCase()
-
-    let transactions = loadTransactions()
-
-    transactions = transactions.filter((transaction) => {
-      const matchesSearch =
-        !search ||
-        transaction.productName.toLowerCase().includes(search) ||
-        transaction.variantName.toLowerCase().includes(search) ||
-        transaction.referenceNumber.toLowerCase().includes(search) ||
-        transaction.userName.toLowerCase().includes(search)
-
-      const matchesBranch = !filters.branchId || transaction.branchId === filters.branchId
-      const matchesProduct = !filters.productId || transaction.productId === filters.productId
-      const matchesType =
-        !filters.transactionType ||
-        filters.transactionType === 'all' ||
-        transaction.transactionType === filters.transactionType
-
-      const created = new Date(transaction.createdAt)
-      const matchesFrom = !filters.dateFrom || created >= new Date(filters.dateFrom)
-      const matchesTo = !filters.dateTo || created <= new Date(`${filters.dateTo}T23:59:59`)
-
-      return matchesSearch && matchesBranch && matchesProduct && matchesType && matchesFrom && matchesTo
-    })
-
-    const total = transactions.length
-    const totalPages = Math.max(1, Math.ceil(total / limit))
-    const start = (page - 1) * limit
-
+    const paged = toPagedMeta(result, filters.limit ?? 10)
     return {
-      data: transactions.slice(start, start + limit),
-      meta: { page, limit, total, totalPages },
+      data: paged.data.map((item) => mapInventoryTransaction(item)),
+      meta: paged.meta,
     }
   },
 
   async stockIn(input: StockInInput): Promise<InventoryTransaction> {
-    await delay()
-
-    const record = findOrCreateInventoryRecord(input.branchId, input.productVariantId)
-    const newQuantity = record.quantity + input.quantity
-    const updated = updateInventoryRecord(record, newQuantity)
-
-    const variant = loadVariants().find((entry) => entry.id === input.productVariantId)
-    if (variant && input.unitCost > 0) {
-      const variants = loadVariants()
-      const index = variants.findIndex((entry) => entry.id === input.productVariantId)
-      if (index !== -1) {
-        variants[index] = { ...variants[index], costPrice: input.unitCost, updatedAt: new Date().toISOString() }
-        writeStorage(MOCK_STORAGE_KEYS.VARIANTS, variants)
-      }
-    }
-
-    return appendTransaction(updated, {
-      transactionType: 'stock_in',
+    const result = await apiPost<Record<string, unknown>>(API_ENDPOINTS.inventoryStockIn, {
+      productVariantId: input.productVariantId,
+      warehouseId: input.branchId,
       quantity: input.quantity,
-      previousQuantity: record.quantity,
-      newQuantity,
       unitCost: input.unitCost,
       supplier: input.supplier,
       notes: input.notes,
-      userId: input.userId,
-      userName: input.userName,
     })
+    return mapInventoryTransaction(result)
   },
 
   async stockOut(input: StockOutInput): Promise<InventoryTransaction> {
-    await delay()
-
-    const record = findOrCreateInventoryRecord(input.branchId, input.productVariantId)
-
-    if (record.quantity < input.quantity) {
-      throw new Error('Insufficient stock for this operation.')
-    }
-
-    const newQuantity = record.quantity - input.quantity
-    const updated = updateInventoryRecord(record, newQuantity)
-
-    return appendTransaction(updated, {
-      transactionType: 'stock_out',
+    const result = await apiPost<Record<string, unknown>>(API_ENDPOINTS.inventoryStockOut, {
+      productVariantId: input.productVariantId,
+      warehouseId: input.branchId,
       quantity: input.quantity,
-      previousQuantity: record.quantity,
-      newQuantity,
       reason: input.reason,
       notes: input.notes,
-      userId: input.userId,
-      userName: input.userName,
     })
+    return mapInventoryTransaction(result)
   },
 
   async adjustInventory(input: InventoryAdjustmentInput): Promise<InventoryTransaction> {
-    await delay()
-
-    const record = findOrCreateInventoryRecord(input.branchId, input.productVariantId)
-    const difference = Math.abs(input.newQuantity - record.quantity)
-    const updated = updateInventoryRecord(record, input.newQuantity)
-
-    return appendTransaction(updated, {
-      transactionType: 'adjustment',
-      quantity: difference,
-      previousQuantity: record.quantity,
+    const result = await apiPut<Record<string, unknown>>(API_ENDPOINTS.inventoryAdjustment, {
+      productVariantId: input.productVariantId,
+      warehouseId: input.branchId,
       newQuantity: input.newQuantity,
       reason: input.reason,
-      userId: input.userId,
-      userName: input.userName,
     })
+    return mapInventoryTransaction(result)
   },
 
   async deductForSale(input: SaleStockDeductionInput): Promise<InventoryTransaction> {
-    await delay(100)
-
-    const record = findOrCreateInventoryRecord(input.branchId, input.productVariantId)
-
-    if (record.quantity < input.quantity) {
-      throw new Error(`Insufficient stock for sale (${input.receiptNumber}).`)
-    }
-
-    const newQuantity = record.quantity - input.quantity
-    const updated = updateInventoryRecord(record, newQuantity)
-
-    return appendTransaction(updated, {
-      transactionType: 'sale',
+    return this.stockOut({
+      productId: '',
+      productVariantId: input.productVariantId,
+      branchId: input.branchId,
       quantity: input.quantity,
-      previousQuantity: record.quantity,
-      newQuantity,
       reason: 'Sale',
       notes: `Receipt: ${input.receiptNumber}`,
       userId: input.userId,

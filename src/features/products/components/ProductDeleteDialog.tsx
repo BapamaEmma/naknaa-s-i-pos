@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import {
   Dialog,
   DialogContent,
@@ -25,25 +26,46 @@ export function ProductDeleteDialog({
   onDeleted,
 }: ProductDeleteDialogProps) {
   const deleteProduct = useDeleteProduct()
+  const [error, setError] = useState<string | null>(null)
 
   const handleDelete = async () => {
     if (!product) return
 
-    await deleteProduct.mutateAsync(product.id)
-    onOpenChange(false)
-    onDeleted?.()
+    setError(null)
+
+    try {
+      await deleteProduct.mutateAsync(product.id)
+      onOpenChange(false)
+      onDeleted?.()
+    } catch (err) {
+      const message =
+        typeof err === 'object' && err && 'message' in err
+          ? String((err as { message?: string }).message ?? '')
+          : err instanceof Error
+            ? err.message
+            : 'Unable to delete this product. Please try again.'
+      setError(message)
+    }
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog
+      open={open}
+      onOpenChange={(nextOpen) => {
+        if (!nextOpen) setError(null)
+        onOpenChange(nextOpen)
+      }}
+    >
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>Delete product</DialogTitle>
           <DialogDescription>
-            Are you sure you want to delete <strong>{product?.name}</strong>? This action cannot be
-            undone.
+            Are you sure you want to delete <strong>{product?.name}</strong>? It will be removed
+            from the active catalog. You can still find it later under the Inactive status filter.
           </DialogDescription>
         </DialogHeader>
+
+        {error ? <p className="text-sm text-destructive">{error}</p> : null}
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={deleteProduct.isPending}>

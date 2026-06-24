@@ -40,8 +40,30 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
       await login(values)
       onSuccess?.()
     } catch (err) {
-      const message =
-        err instanceof Error ? err.message : 'Unable to sign in. Please check your credentials and try again.'
+      const status =
+        typeof err === 'object' && err && 'status' in err
+          ? Number((err as { status?: number }).status)
+          : undefined
+      const apiMessage =
+        typeof err === 'object' && err && 'message' in err
+          ? String((err as { message?: string }).message ?? '')
+          : ''
+
+      let message = apiMessage || 'Unable to sign in. Please check your credentials and try again.'
+
+      if (status === 403 && !apiMessage) {
+        message =
+          'Cannot reach the API (port conflict). Start the backend on http://localhost:5080 and restart the frontend dev server.'
+      } else if (
+        !status &&
+        (apiMessage === 'Network Error' ||
+          apiMessage.toLowerCase().includes('network') ||
+          apiMessage.toLowerCase().includes('timeout'))
+      ) {
+        message =
+          'Cannot connect to the API. Start PostgreSQL, then run the backend: cd backend && dotnet run --project src/NaknaaErp.Api'
+      }
+
       setError(message)
     }
   })

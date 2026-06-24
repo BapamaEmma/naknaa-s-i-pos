@@ -1,29 +1,61 @@
-import { STORAGE_KEYS } from '@/constants'
-import { normalizeUserRole } from '@/constants/roles'
-import type { AuthResponse } from '@/types/auth'
+import { STORAGE_KEYS } from '@/constants/api'
+import { API_ENDPOINTS } from '@/services/api/endpoints'
+import { apiPost } from '@/services/api/http'
+import { mapAuthUser } from '@/services/api/mappers'
+import { tokenStorage } from '@/services/storage/tokenStorage'
+import type { AuthResponse, LoginCredentials } from '@/types/auth'
 import type { User } from '@/types/user'
 
 function parseStoredUser(raw: string | null): User | null {
   if (!raw) return null
 
   try {
-    const user = JSON.parse(raw) as User
-    return {
-      ...user,
-      role: normalizeUserRole(user.role),
-    }
+    return JSON.parse(raw) as User
   } catch {
     return null
   }
 }
 
+interface TokenResponseDto {
+  accessToken: string
+  refreshToken: string
+  expiresAt: string
+  user: {
+    id: string
+    firstName: string
+    lastName: string
+    username: string
+    email: string
+    roleName: string
+    branchId: string
+    branchName: string
+    permissions: string[]
+  }
+}
+
+function persistFromTokenResponse(response: TokenResponseDto): AuthResponse {
+  const authResponse: AuthResponse = {
+    user: mapAuthUser(response.user),
+    tokens: {
+      accessToken: response.accessToken,
+      refreshToken: response.refreshToken,
+    },
+  }
+
+  localStorage.setItem(STORAGE_KEYS.ACCESS_TOKEN, authResponse.tokens.accessToken)
+  localStorage.setItem(STORAGE_KEYS.REFRESH_TOKEN, authResponse.tokens.refreshToken)
+  localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(authResponse.user))
+
+  return authResponse
+}
+
 export const authService = {
   getAccessToken(): string | null {
-    return localStorage.getItem(STORAGE_KEYS.ACCESS_TOKEN)
+    return tokenStorage.getAccessToken()
   },
 
   getRefreshToken(): string | null {
-    return localStorage.getItem(STORAGE_KEYS.REFRESH_TOKEN)
+    return tokenStorage.getRefreshToken()
   },
 
   getStoredUser(): User | null {
@@ -37,12 +69,44 @@ export const authService = {
   },
 
   clearSession(): void {
-    localStorage.removeItem(STORAGE_KEYS.ACCESS_TOKEN)
-    localStorage.removeItem(STORAGE_KEYS.REFRESH_TOKEN)
-    localStorage.removeItem(STORAGE_KEYS.USER)
+    tokenStorage.clearTokens()
+  },
+
+  async login(credentials: LoginCredentials): Promise<AuthResponse> {
+    const response = await apiPost<TokenResponseDto>(API_ENDPOINTS.auth.login, {
+      email: credentials.email.trim(),
+      password: credentials.password,
+    })
+
+    return persistFromTokenResponse(response)
+  },
+
+  async logout(): Promise<void> {
+    try {
+      await apiPost(API_ENDPOINTS.auth.logout)
+    } catch {
+      // Ignore network errors during logout.
+    } finally {
+      this.clearSession()
+    }
   },
 
   async refreshAccessToken(): Promise<string | null> {
-    return null
+    const accessToken = tokenStorage.getAccessToken()
+    const refreshToken = tokenStorage.getRefreshToken()
+
+    if (!accessToken || !refreshToken) return null
+
+    try {
+      const response = await apiPost<TokenResponseDto>(API_ENDPOINTS.auth.refresh, {
+        accessToken,
+        refreshToken,
+      })
+      const session = persistFromTokenResponse(response)
+      return session.tokens.accessToken
+    } catch {
+      this.clearSession()
+      return null
+    }
   },
 }

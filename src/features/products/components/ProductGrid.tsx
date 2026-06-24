@@ -21,6 +21,7 @@ import { LoadingSpinner } from '@/components/shared/LoadingSpinner'
 import { ProductDetailsDialog } from '@/features/products/components/ProductDetailsDialog'
 import { PRODUCT_ROUTES } from '@/features/products/constants'
 import type { ProductListItem, ProductListResult } from '@/features/products/types'
+import { formatCurrency } from '@/lib/format'
 
 interface ProductGridProps {
   data?: ProductListResult
@@ -150,6 +151,9 @@ export function ProductGrid({ data, isLoading, onDelete }: ProductGridProps) {
               <p className="text-sm text-muted-foreground">{product.categoryName}</p>
               <p className="text-sm">
                 <span className="text-muted-foreground">Brand:</span> {product.brand}
+              </p>
+              <p className="text-lg font-semibold text-foreground">
+                {formatCurrency(product.sellingPrice)}
               </p>
             </CardContent>
 

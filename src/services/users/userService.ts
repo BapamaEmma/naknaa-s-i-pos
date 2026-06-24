@@ -1,494 +1,176 @@
 import type {
   CreateUserInput,
-  ManagedUser,
   ResetPasswordInput,
   UpdateUserInput,
-  UserActivity,
   UserActivityFilters,
   UserActivityResult,
   UserDetail,
   UserListFilters,
-  UserListItem,
   UserListResult,
   UserStatistics,
 } from '@/features/users/types'
-import { ROLE_LABELS, normalizeUserRole } from '@/constants/roles'
-import { ROLE_PERMISSIONS } from '@/features/users/constants'
-import { DEFAULT_BRANCH_ID } from '@/features/inventory/constants'
+import type { UserRole } from '@/constants/roles'
+import { API_ENDPOINTS } from '@/services/api/endpoints'
+import { apiDelete, apiGet, apiPost, apiPut, toPagedMeta } from '@/services/api/http'
 import {
-  BRANCHES_STORAGE_KEY,
-  SEED_BRANCHES,
-} from '@/services/inventory/mock-data'
-import { delay, readStorage, writeStorage } from '@/services/products/storage'
-import {
-  SEED_EMPLOYEE_COUNTER,
-  SEED_USER_ACTIVITY,
-  SEED_USER_PASSWORDS,
-  SEED_USERS,
-  USER_ACTIVITY_STORAGE_KEY,
-  USER_EMPLOYEE_COUNTER_KEY,
-  USER_PASSWORDS_STORAGE_KEY,
-  USERS_STORAGE_KEY,
-} from '@/services/users/mock-data'
+  BACKEND_DEFAULT_BRANCH_ID,
+  BACKEND_ROLE_IDS,
+  buildQueryParams,
+  mapUserActivity,
+  mapUserDetail,
+  mapUserListItem,
+} from '@/services/api/mappers'
+import type { PagedResult } from '@/services/api/types'
 
-interface BranchOption {
-  id: string
-  name: string
-}
-
-function loadUsers(): ManagedUser[] {
-  const users = readStorage<ManagedUser[]>(USERS_STORAGE_KEY, SEED_USERS)
-
-  return users.map((user) => ({
-    ...user,
-    roleId: normalizeUserRole(user.roleId),
-  }))
-}
-
-function saveUsers(users: ManagedUser[]): void {
-  writeStorage(USERS_STORAGE_KEY, users)
-}
-
-function loadPasswords(): Record<string, string> {
-  return readStorage(USER_PASSWORDS_STORAGE_KEY, SEED_USER_PASSWORDS)
-}
-
-function savePasswords(passwords: Record<string, string>): void {
-  writeStorage(USER_PASSWORDS_STORAGE_KEY, passwords)
-}
-
-function loadActivities(): UserActivity[] {
-  return readStorage(USER_ACTIVITY_STORAGE_KEY, SEED_USER_ACTIVITY)
-}
-
-function saveActivities(activities: UserActivity[]): void {
-  writeStorage(USER_ACTIVITY_STORAGE_KEY, activities)
-}
-
-function loadEmployeeCounter(): number {
-  return readStorage(USER_EMPLOYEE_COUNTER_KEY, SEED_EMPLOYEE_COUNTER)
-}
-
-function saveEmployeeCounter(value: number): void {
-  writeStorage(USER_EMPLOYEE_COUNTER_KEY, value)
-}
-
-function loadBranches(): BranchOption[] {
-  return readStorage(BRANCHES_STORAGE_KEY, SEED_BRANCHES)
-}
-
-function getBranchName(branchId: string): string {
-  return loadBranches().find((branch) => branch.id === branchId)?.name ?? 'Unknown Branch'
-}
-
-function generateEmployeeId(): string {
-  const next = loadEmployeeCounter() + 1
-  saveEmployeeCounter(next)
-  return `EMP-${String(next).padStart(6, '0')}`
-}
-
-function isUsernameTaken(username: string, excludeUserId?: string): boolean {
-  const normalized = username.trim().toLowerCase()
-  if (!normalized) {
-    return false
+function toUserListQuery(filters: UserListFilters) {
+  const params: Record<string, string | number | boolean | undefined> = {
+    search: filters.search,
+    branchId: filters.branchId,
+    page: filters.page ?? 1,
+    pageSize: filters.limit ?? 10,
   }
 
-  return loadUsers().some(
-    (user) =>
-      user.username.toLowerCase() === normalized && (!excludeUserId || user.id !== excludeUserId),
-  )
-}
-
-function isEmailTaken(email: string, excludeUserId?: string): boolean {
-  const normalized = email.trim().toLowerCase()
-  if (!normalized) {
-    return false
+  if (filters.roleId && filters.roleId !== 'all') {
+    params.roleId = BACKEND_ROLE_IDS[filters.roleId as UserRole] ?? filters.roleId
   }
 
-  return loadUsers().some(
-    (user) => user.email.toLowerCase() === normalized && (!excludeUserId || user.id !== excludeUserId),
-  )
+  if (filters.status === 'active') params.isActive = true
+  if (filters.status === 'inactive' || filters.status === 'suspended') params.isActive = false
+
+  return buildQueryParams(params)
 }
 
-function findUserByEmail(email: string): ManagedUser | undefined {
-  const normalized = email.trim().toLowerCase()
-  return loadUsers().find((entry) => entry.email.toLowerCase() === normalized)
-}
-
-function verifyUserPassword(userId: string, password: string): boolean {
-  const passwords = loadPasswords()
-  return passwords[userId] === password
-}
-
-function enrichListItem(user: ManagedUser): UserListItem {
+function toCreateUserPayload(input: CreateUserInput) {
   return {
-    id: user.id,
-    employeeId: user.employeeId,
-    fullName: `${user.firstName} ${user.lastName}`,
-    username: user.username,
-    email: user.email,
-    phoneNumber: user.phoneNumber,
-    roleId: user.roleId,
-    roleName: ROLE_LABELS[user.roleId],
-    branchId: user.branchId,
-    branchName: getBranchName(user.branchId),
-    status: user.status,
-    lastLogin: user.lastLogin,
+    firstName: input.firstName.trim(),
+    lastName: input.lastName.trim(),
+    username: input.username.trim(),
+    email: input.email.trim(),
+    phoneNumber: input.phoneNumber.trim(),
+    roleId: BACKEND_ROLE_IDS[input.roleId],
+    branchId: input.branchId,
+    password: input.password,
   }
 }
 
-function enrichDetail(user: ManagedUser): UserDetail {
+function toUpdateUserPayload(input: UpdateUserInput) {
   return {
-    ...user,
-    fullName: `${user.firstName} ${user.lastName}`,
-    roleName: ROLE_LABELS[user.roleId],
-    branchName: getBranchName(user.branchId),
-    permissions: [...ROLE_PERMISSIONS[user.roleId]],
-  }
-}
-
-function filterUsers(users: ManagedUser[], filters: UserListFilters): ManagedUser[] {
-  const search = filters.search?.trim().toLowerCase()
-
-  return users.filter((user) => {
-    if (search) {
-      const haystack = [
-        user.firstName,
-        user.lastName,
-        user.username,
-        user.email,
-        user.employeeId,
-      ]
-        .join(' ')
-        .toLowerCase()
-
-      if (!haystack.includes(search)) {
-        return false
-      }
-    }
-
-    if (filters.roleId && filters.roleId !== 'all' && user.roleId !== filters.roleId) {
-      return false
-    }
-
-    if (filters.branchId && filters.branchId !== 'all' && user.branchId !== filters.branchId) {
-      return false
-    }
-
-    if (filters.status && filters.status !== 'all' && user.status !== filters.status) {
-      return false
-    }
-
-    return true
-  })
-}
-
-function countOnlineUsers(users: ManagedUser[]): number {
-  const threshold = Date.now() - 30 * 60 * 1000
-
-  return users.filter((user) => {
-    if (user.status !== 'active' || !user.lastLogin) {
-      return false
-    }
-
-    return new Date(user.lastLogin).getTime() >= threshold
-  }).length
-}
-
-function appendActivity(
-  userId: string,
-  activity: string,
-  module: string,
-  branchId: string,
-): void {
-  const activities = loadActivities()
-  activities.unshift({
-    id: crypto.randomUUID(),
-    userId,
-    activity,
-    module,
-    branchId,
-    branchName: getBranchName(branchId),
-    createdAt: new Date().toISOString(),
-  })
-  saveActivities(activities)
-}
-
-function assertCanDeleteUser(user: ManagedUser): void {
-  if (user.roleId === 'administrator') {
-    const activeAdmins = loadUsers().filter(
-      (entry) => entry.roleId === 'administrator' && entry.status !== 'inactive',
-    )
-
-    if (activeAdmins.length <= 1) {
-      throw new Error('Cannot delete the last administrator account.')
-    }
+    firstName: input.firstName.trim(),
+    lastName: input.lastName.trim(),
+    username: input.username.trim(),
+    email: input.email.trim(),
+    phoneNumber: input.phoneNumber.trim(),
+    roleId: BACKEND_ROLE_IDS[input.roleId],
+    branchId: input.branchId,
+    isActive: input.status === 'active',
   }
 }
 
 export const userService = {
   async getUsers(filters: UserListFilters = {}): Promise<UserListResult> {
-    await delay()
-
-    const page = filters.page ?? 1
-    const limit = filters.limit ?? 10
-    const filtered = filterUsers(loadUsers(), filters).sort((a, b) =>
-      a.firstName.localeCompare(b.firstName),
-    )
-    const total = filtered.length
-    const totalPages = Math.max(1, Math.ceil(total / limit))
-    const start = (page - 1) * limit
-
+    const result = await apiGet<PagedResult<Record<string, unknown>>>(API_ENDPOINTS.users, {
+      params: toUserListQuery(filters),
+    })
+    const paged = toPagedMeta(result, filters.limit ?? 10)
     return {
-      data: filtered.slice(start, start + limit).map(enrichListItem),
-      meta: { page, limit, total, totalPages },
+      data: paged.data.map((item) => mapUserListItem(item)),
+      meta: paged.meta,
     }
   },
 
   async getUserById(id: string): Promise<UserDetail> {
-    await delay()
-
-    const user = loadUsers().find((entry) => entry.id === id)
-    if (!user) {
-      throw new Error('User not found.')
-    }
-
-    return enrichDetail(user)
+    const dto = await apiGet<Record<string, unknown>>(API_ENDPOINTS.user(id))
+    return mapUserDetail(dto)
   },
 
-  async authenticate(email: string, password: string): Promise<UserDetail> {
-    await delay()
-
-    const user = findUserByEmail(email)
-    if (!user || !verifyUserPassword(user.id, password)) {
-      throw new Error('Invalid email or password.')
-    }
-
-    if (user.status !== 'active') {
-      throw new Error('This account is not active. Contact an administrator.')
-    }
-
-    return enrichDetail(user)
+  async authenticate(_email: string, _password: string): Promise<UserDetail> {
+    throw new Error('Use authService.login() for authentication.')
   },
 
   async getUserStatistics(): Promise<UserStatistics> {
-    await delay()
-
-    const users = loadUsers()
-
+    const dto = await apiGet<Record<string, unknown>>(API_ENDPOINTS.usersStatistics)
     return {
-      totalUsers: users.length,
-      activeUsers: users.filter((user) => user.status === 'active').length,
-      suspendedUsers: users.filter((user) => user.status === 'suspended').length,
-      onlineUsers: countOnlineUsers(users),
+      totalUsers: Number(dto.totalUsers ?? 0),
+      activeUsers: Number(dto.activeUsers ?? 0),
+      suspendedUsers: Number(dto.inactiveUsers ?? 0),
+      onlineUsers: 0,
     }
   },
 
   async isUsernameAvailable(username: string, excludeUserId?: string): Promise<boolean> {
-    await delay(150)
-    if (!username.trim()) {
-      return true
-    }
+    if (!username.trim()) return true
 
-    return !isUsernameTaken(username, excludeUserId)
+    const result = await apiGet<PagedResult<Record<string, unknown>>>(API_ENDPOINTS.users, {
+      params: buildQueryParams({ search: username.trim(), page: 1, pageSize: 20 }),
+    })
+
+    const normalized = username.trim().toLowerCase()
+    return !result.items.some((item) => {
+      const itemUsername = String(item.username ?? '').toLowerCase()
+      const itemId = String(item.id)
+      return itemUsername === normalized && (!excludeUserId || itemId !== excludeUserId)
+    })
   },
 
   async createUser(input: CreateUserInput): Promise<UserDetail> {
-    await delay()
-
-    if (isUsernameTaken(input.username)) {
-      throw new Error('Username is already taken.')
-    }
-
-    if (isEmailTaken(input.email)) {
-      throw new Error('Email is already registered to another user.')
-    }
-
-    const branch = loadBranches().find((entry) => entry.id === input.branchId)
-    if (!branch) {
-      throw new Error('Invalid branch selected.')
-    }
-
-    const timestamp = new Date().toISOString()
-    const user: ManagedUser = {
-      id: crypto.randomUUID(),
-      employeeId: generateEmployeeId(),
-      firstName: input.firstName.trim(),
-      lastName: input.lastName.trim(),
-      username: input.username.trim(),
-      email: input.email.trim(),
-      phoneNumber: input.phoneNumber.trim(),
-      roleId: input.roleId,
-      branchId: input.branchId,
-      status: 'active',
-      lastLogin: null,
-      createdAt: timestamp,
-      updatedAt: timestamp,
-    }
-
-    const users = loadUsers()
-    users.push(user)
-    saveUsers(users)
-
-    const passwords = loadPasswords()
-    passwords[user.id] = input.password
-    savePasswords(passwords)
-
-    appendActivity(user.id, 'User Account Created', 'Users', user.branchId)
-
-    return enrichDetail(user)
+    const dto = await apiPost<Record<string, unknown>>(
+      API_ENDPOINTS.users,
+      toCreateUserPayload(input),
+    )
+    return mapUserDetail(dto)
   },
 
   async updateUser(id: string, input: UpdateUserInput): Promise<UserDetail> {
-    await delay()
-
-    const users = loadUsers()
-    const index = users.findIndex((entry) => entry.id === id)
-
-    if (index === -1) {
-      throw new Error('User not found.')
-    }
-
-    if (isUsernameTaken(input.username, id)) {
-      throw new Error('Username is already taken.')
-    }
-
-    if (isEmailTaken(input.email, id)) {
-      throw new Error('Email is already registered to another user.')
-    }
-
-    const branch = loadBranches().find((entry) => entry.id === input.branchId)
-    if (!branch) {
-      throw new Error('Invalid branch selected.')
-    }
-
-    const current = users[index]
-
-    if (
-      current.roleId === 'administrator' &&
-      input.roleId !== 'administrator' &&
-      input.status !== 'inactive'
-    ) {
-      const otherAdmins = users.filter(
-        (entry) =>
-          entry.id !== id && entry.roleId === 'administrator' && entry.status !== 'inactive',
-      )
-
-      if (otherAdmins.length === 0) {
-        throw new Error('At least one active administrator is required.')
-      }
-    }
-
-    const updated: ManagedUser = {
-      ...current,
-      firstName: input.firstName.trim(),
-      lastName: input.lastName.trim(),
-      username: input.username.trim(),
-      email: input.email.trim(),
-      phoneNumber: input.phoneNumber.trim(),
-      roleId: input.roleId,
-      branchId: input.branchId,
-      status: input.status,
-      updatedAt: new Date().toISOString(),
-    }
-
-    users[index] = updated
-    saveUsers(users)
-
-    appendActivity(id, 'User Profile Updated', 'Users', updated.branchId)
-
-    return enrichDetail(updated)
+    const dto = await apiPut<Record<string, unknown>>(
+      API_ENDPOINTS.user(id),
+      toUpdateUserPayload(input),
+    )
+    return mapUserDetail(dto)
   },
 
   async suspendUser(id: string): Promise<UserDetail> {
-    await delay()
-
-    const users = loadUsers()
-    const index = users.findIndex((entry) => entry.id === id)
-
-    if (index === -1) {
-      throw new Error('User not found.')
-    }
-
-    const current = users[index]
-
-    if (current.roleId === 'administrator') {
-      throw new Error('Administrator accounts cannot be suspended.')
-    }
-
-    const updated: ManagedUser = {
-      ...current,
-      status: 'suspended',
-      updatedAt: new Date().toISOString(),
-    }
-
-    users[index] = updated
-    saveUsers(users)
-
-    appendActivity(id, 'User Suspended', 'Users', updated.branchId)
-
-    return enrichDetail(updated)
+    const current = await this.getUserById(id)
+    return this.updateUser(id, {
+      firstName: current.firstName,
+      lastName: current.lastName,
+      username: current.username,
+      email: current.email,
+      phoneNumber: current.phoneNumber,
+      roleId: current.roleId,
+      branchId: current.branchId,
+      status: 'inactive',
+    })
   },
 
   async deleteUser(id: string): Promise<void> {
-    await delay()
-
-    const users = loadUsers()
-    const user = users.find((entry) => entry.id === id)
-
-    if (!user) {
-      throw new Error('User not found.')
-    }
-
-    assertCanDeleteUser(user)
-
-    saveUsers(users.filter((entry) => entry.id !== id))
-
-    const passwords = loadPasswords()
-    delete passwords[id]
-    savePasswords(passwords)
-
-    saveActivities(loadActivities().filter((entry) => entry.userId !== id))
+    await apiDelete(API_ENDPOINTS.user(id))
   },
 
   async resetPassword(id: string, input: ResetPasswordInput): Promise<void> {
-    await delay()
-
-    const user = loadUsers().find((entry) => entry.id === id)
-    if (!user) {
-      throw new Error('User not found.')
-    }
-
-    const passwords = loadPasswords()
-    passwords[id] = input.password
-    savePasswords(passwords)
-
-    appendActivity(id, 'Password Reset', 'Users', user.branchId)
+    await apiPost(API_ENDPOINTS.userResetPassword(id), { password: input.password })
   },
 
   async getUserActivity(
     userId: string,
     filters: UserActivityFilters = {},
   ): Promise<UserActivityResult> {
-    await delay()
-
-    const page = filters.page ?? 1
-    const limit = filters.limit ?? 10
-    const filtered = loadActivities()
-      .filter((entry) => entry.userId === userId)
-      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-
-    const total = filtered.length
-    const totalPages = Math.max(1, Math.ceil(total / limit))
-    const start = (page - 1) * limit
-
+    const result = await apiGet<PagedResult<Record<string, unknown>>>(
+      API_ENDPOINTS.userActivity(userId),
+      {
+        params: buildQueryParams({
+          page: filters.page ?? 1,
+          pageSize: filters.limit ?? 10,
+        }),
+      },
+    )
+    const paged = toPagedMeta(result, filters.limit ?? 10)
     return {
-      data: filtered.slice(start, start + limit),
-      meta: { page, limit, total, totalPages },
+      data: paged.data.map((item) => mapUserActivity(item)),
+      meta: paged.meta,
     }
   },
 
   getDefaultBranchId(): string {
-    return DEFAULT_BRANCH_ID
+    return BACKEND_DEFAULT_BRANCH_ID
   },
 }

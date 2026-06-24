@@ -25,144 +25,218 @@ import type {
   UpdateTaxInput,
   UpdateWarehouseInput,
 } from '@/features/settings/types'
-import { delay, readStorage, writeStorage } from '@/services/products/storage'
+import { API_ENDPOINTS } from '@/services/api/endpoints'
+import { apiGet, apiPost, apiPut } from '@/services/api/http'
 import {
-  SEED_BACKUP_SETTINGS,
-  SEED_BRANCHES,
-  SEED_BUSINESS_SETTINGS,
-  SEED_NOTIFICATION_SETTINGS,
-  SEED_RECEIPT_SETTINGS,
-  SEED_SECURITY_SETTINGS,
-  SEED_SETTINGS_AUDIT,
-  SEED_SETTINGS_WAREHOUSES,
-  SEED_SYSTEM_SETTINGS,
-  SEED_TAX_SETTINGS,
-  SETTINGS_STORAGE_KEYS,
-} from '@/services/settings/mock-data'
+  buildQueryParams,
+  mapSettingsBranch,
+  mapWarehouseDetail,
+  toEntityStatus,
+} from '@/services/api/mappers'
+import type { PagedResult } from '@/services/api/types'
 
-function createId(prefix: string): string {
-  return `${prefix}-${crypto.randomUUID().slice(0, 8)}`
+const DEFAULT_TAX_SETTINGS: TaxSettings = {
+  taxes: [],
+  updatedAt: new Date().toISOString(),
 }
 
-function appendAudit(action: string, category: SettingsAuditEntry['category'] = 'settings'): void {
-  const entries = readStorage(SETTINGS_STORAGE_KEYS.AUDIT, SEED_SETTINGS_AUDIT)
-  const now = new Date()
-  const entry: SettingsAuditEntry = {
-    id: createId('audit'),
-    user: 'System Admin',
-    action,
-    date: now.toISOString().slice(0, 10),
-    time: now.toTimeString().slice(0, 5),
-    category,
+const DEFAULT_BACKUP_SETTINGS: BackupSettings = {
+  automaticBackupEnabled: false,
+  backupSchedule: 'weekly',
+  lastBackupDate: null,
+  backupStatus: 'never',
+  updatedAt: new Date().toISOString(),
+}
+
+function mapBusinessSettings(dto: Record<string, unknown>): BusinessSettings {
+  return {
+    businessName: String(dto.businessName ?? ''),
+    businessLogo: dto.businessLogo ? String(dto.businessLogo) : null,
+    businessPhone: String(dto.businessPhone ?? ''),
+    alternatePhone: String(dto.alternatePhone ?? ''),
+    emailAddress: String(dto.emailAddress ?? ''),
+    website: String(dto.website ?? ''),
+    businessAddress: String(dto.businessAddress ?? ''),
+    city: String(dto.city ?? ''),
+    country: String(dto.country ?? ''),
+    taxIdentificationNumber: String(dto.taxIdentificationNumber ?? ''),
+    updatedAt: String(dto.updatedAt ?? new Date().toISOString()),
   }
-  writeStorage(SETTINGS_STORAGE_KEYS.AUDIT, [entry, ...entries].slice(0, 50))
+}
+
+function mapReceiptSettings(dto: Record<string, unknown>): ReceiptSettings {
+  return {
+    receiptHeader: String(dto.receiptHeader ?? ''),
+    receiptFooter: String(dto.receiptFooter ?? ''),
+    showBusinessLogo: Boolean(dto.showBusinessLogo),
+    showCustomerDetails: Boolean(dto.showCustomerDetails),
+    showCashierName: Boolean(dto.showCashierName),
+    showBranchName: Boolean(dto.showBranchName),
+    receiptSize: (String(dto.receiptSize ?? '80mm') as ReceiptSettings['receiptSize']),
+    receiptNumberPrefix: String(dto.receiptNumberPrefix ?? ''),
+    receiptNumberFormat: String(dto.receiptNumberFormat ?? ''),
+    updatedAt: String(dto.updatedAt ?? new Date().toISOString()),
+  }
+}
+
+function mapSecuritySettings(dto: Record<string, unknown>): SecuritySettings {
+  return {
+    passwordExpiryDays: Number(dto.passwordExpiryDays ?? 90),
+    sessionTimeoutMinutes: Number(dto.sessionTimeoutMinutes ?? 30),
+    loginAttemptLimit: Number(dto.loginAttemptLimit ?? 5),
+    twoFactorEnabled: Boolean(dto.twoFactorEnabled),
+    userLockoutEnabled: Boolean(dto.userLockoutEnabled),
+    updatedAt: String(dto.updatedAt ?? new Date().toISOString()),
+  }
+}
+
+function mapNotificationSettings(dto: Record<string, unknown>): NotificationSettings {
+  return {
+    lowStockAlerts: Boolean(dto.lowStockAlerts),
+    newSaleNotifications: Boolean(dto.newSaleNotifications),
+    warehouseTransferNotifications: Boolean(dto.warehouseTransferNotifications),
+    newUserNotifications: Boolean(dto.newUserNotifications),
+    systemAlerts: Boolean(dto.systemAlerts),
+    inAppDelivery: Boolean(dto.inAppDelivery),
+    emailDelivery: Boolean(dto.emailDelivery),
+    whatsAppDelivery: Boolean(dto.whatsAppDelivery),
+    updatedAt: String(dto.updatedAt ?? new Date().toISOString()),
+  }
+}
+
+function mapSystemSettings(dto: Record<string, unknown>): SystemSettings {
+  const numbering = (dto.numbering ?? {}) as Record<string, unknown>
+  return {
+    currency: String(dto.currency ?? 'GHS'),
+    dateFormat: (String(dto.dateFormat ?? 'DD/MM/YYYY') as SystemSettings['dateFormat']),
+    timeFormat: (String(dto.timeFormat ?? '24h') as SystemSettings['timeFormat']),
+    themeMode: (String(dto.themeMode ?? 'system') as SystemSettings['themeMode']),
+    numbering: {
+      receiptPrefix: String(numbering.receiptPrefix ?? ''),
+      receiptFormat: String(numbering.receiptFormat ?? ''),
+      customerPrefix: String(numbering.customerPrefix ?? ''),
+      customerFormat: String(numbering.customerFormat ?? ''),
+      supplierPrefix: String(numbering.supplierPrefix ?? ''),
+      supplierFormat: String(numbering.supplierFormat ?? ''),
+      productPrefix: String(numbering.productPrefix ?? ''),
+      productFormat: String(numbering.productFormat ?? ''),
+      warehousePrefix: String(numbering.warehousePrefix ?? ''),
+      warehouseFormat: String(numbering.warehouseFormat ?? ''),
+    },
+    updatedAt: String(dto.updatedAt ?? new Date().toISOString()),
+  }
+}
+
+function mapSettingsWarehouse(dto: Record<string, unknown>): SettingsWarehouse {
+  return {
+    id: String(dto.id),
+    warehouseName: String(dto.warehouseName ?? ''),
+    description: String(dto.description ?? ''),
+    address: String(dto.address ?? ''),
+    manager: String(dto.manager ?? ''),
+    status: dto.status === 2 || dto.status === 'inactive' ? 'inactive' : 'active',
+    createdAt: String(dto.createdAt ?? new Date().toISOString()),
+  }
+}
+
+function mapAuditEntry(dto: Record<string, unknown>): SettingsAuditEntry {
+  const actionDate = String(dto.actionDate ?? dto.createdAt ?? new Date().toISOString())
+  const date = new Date(actionDate)
+  return {
+    id: String(dto.id),
+    user: String(dto.userName ?? dto.user ?? 'System'),
+    action: String(dto.action ?? dto.details ?? ''),
+    date: date.toISOString().slice(0, 10),
+    time: date.toTimeString().slice(0, 5),
+    category: 'settings',
+  }
 }
 
 export const settingsService = {
   async getBusinessSettings(): Promise<BusinessSettings> {
-    await delay()
-    return readStorage(SETTINGS_STORAGE_KEYS.BUSINESS, SEED_BUSINESS_SETTINGS)
+    const dto = await apiGet<Record<string, unknown>>(API_ENDPOINTS.settings.business)
+    return mapBusinessSettings(dto)
   },
 
   async updateBusinessSettings(input: UpdateBusinessSettingsInput): Promise<BusinessSettings> {
-    await delay()
-    const updated: BusinessSettings = {
-      ...input,
-      updatedAt: new Date().toISOString(),
-    }
-    writeStorage(SETTINGS_STORAGE_KEYS.BUSINESS, updated)
-    appendAudit('Updated business information')
-    return updated
+    const dto = await apiPut<Record<string, unknown>>(API_ENDPOINTS.settings.business, input)
+    return mapBusinessSettings(dto)
   },
 
   async getReceiptSettings(): Promise<ReceiptSettings> {
-    await delay()
-    return readStorage(SETTINGS_STORAGE_KEYS.RECEIPTS, SEED_RECEIPT_SETTINGS)
+    const dto = await apiGet<Record<string, unknown>>(API_ENDPOINTS.settings.receipts)
+    return mapReceiptSettings(dto)
   },
 
   async updateReceiptSettings(input: UpdateReceiptSettingsInput): Promise<ReceiptSettings> {
-    await delay()
-    const updated: ReceiptSettings = {
-      ...input,
-      updatedAt: new Date().toISOString(),
-    }
-    writeStorage(SETTINGS_STORAGE_KEYS.RECEIPTS, updated)
-    appendAudit('Updated receipt settings')
-    return updated
+    const dto = await apiPut<Record<string, unknown>>(API_ENDPOINTS.settings.receipts, input)
+    return mapReceiptSettings(dto)
   },
 
   async getBranches(): Promise<SettingsBranch[]> {
-    await delay()
-    return readStorage(SETTINGS_STORAGE_KEYS.BRANCHES, SEED_BRANCHES)
+    const branches = await apiGet<Array<Record<string, unknown>>>(API_ENDPOINTS.settings.branches)
+    return branches.map((branch) => mapSettingsBranch(branch))
   },
 
   async createBranch(input: CreateBranchInput): Promise<SettingsBranch> {
-    await delay()
-    const branches = readStorage(SETTINGS_STORAGE_KEYS.BRANCHES, SEED_BRANCHES)
-    const branch: SettingsBranch = {
-      id: createId('branch'),
-      ...input,
-      createdAt: new Date().toISOString(),
-    }
-    writeStorage(SETTINGS_STORAGE_KEYS.BRANCHES, [...branches, branch])
-    appendAudit(`Created branch: ${branch.branchName}`)
-    return branch
+    const dto = await apiPost<Record<string, unknown>>(API_ENDPOINTS.settings.branches, {
+      branchName: input.branchName,
+      branchCode: input.branchCode,
+      address: input.address,
+      phoneNumber: input.phoneNumber,
+      status: toEntityStatus(input.status),
+    })
+    return mapSettingsBranch(dto)
   },
 
   async updateBranch(id: string, input: UpdateBranchInput): Promise<SettingsBranch> {
-    await delay()
-    const branches = readStorage(SETTINGS_STORAGE_KEYS.BRANCHES, SEED_BRANCHES)
-    const index = branches.findIndex((entry) => entry.id === id)
-    if (index === -1) {
-      throw new Error('Branch not found')
-    }
-    const updated = { ...branches[index], ...input }
-    branches[index] = updated
-    writeStorage(SETTINGS_STORAGE_KEYS.BRANCHES, branches)
-    appendAudit(`Updated branch: ${updated.branchName}`)
-    return updated
+    const dto = await apiPut<Record<string, unknown>>(API_ENDPOINTS.settings.branch(id), {
+      branchName: input.branchName,
+      branchCode: input.branchCode,
+      address: input.address,
+      phoneNumber: input.phoneNumber,
+      status: input.status ? toEntityStatus(input.status) : undefined,
+    })
+    return mapSettingsBranch(dto)
   },
 
   async getWarehouses(): Promise<SettingsWarehouse[]> {
-    await delay()
-    return readStorage(SETTINGS_STORAGE_KEYS.WAREHOUSES, SEED_SETTINGS_WAREHOUSES)
+    const result = await apiGet<PagedResult<Record<string, unknown>>>(API_ENDPOINTS.warehouses, {
+      params: { page: 1, pageSize: 100 },
+    })
+
+    return result.items.map((item) => mapSettingsWarehouse(mapWarehouseDetail(item)))
   },
 
   async createWarehouse(input: CreateWarehouseInput): Promise<SettingsWarehouse> {
-    await delay()
-    const warehouses = readStorage(SETTINGS_STORAGE_KEYS.WAREHOUSES, SEED_SETTINGS_WAREHOUSES)
-    const warehouse: SettingsWarehouse = {
-      id: createId('wh'),
-      ...input,
-      createdAt: new Date().toISOString(),
-    }
-    writeStorage(SETTINGS_STORAGE_KEYS.WAREHOUSES, [...warehouses, warehouse])
-    appendAudit(`Created warehouse: ${warehouse.warehouseName}`)
-    return warehouse
+    const dto = await apiPost<Record<string, unknown>>(API_ENDPOINTS.warehouses, {
+      warehouseName: input.warehouseName,
+      description: input.description,
+      address: input.address,
+      manager: input.manager,
+      status: toEntityStatus(input.status),
+    })
+    return mapSettingsWarehouse(mapWarehouseDetail(dto))
   },
 
   async updateWarehouse(id: string, input: UpdateWarehouseInput): Promise<SettingsWarehouse> {
-    await delay()
-    const warehouses = readStorage(SETTINGS_STORAGE_KEYS.WAREHOUSES, SEED_SETTINGS_WAREHOUSES)
-    const index = warehouses.findIndex((entry) => entry.id === id)
-    if (index === -1) {
-      throw new Error('Warehouse not found')
-    }
-    const updated = { ...warehouses[index], ...input }
-    warehouses[index] = updated
-    writeStorage(SETTINGS_STORAGE_KEYS.WAREHOUSES, warehouses)
-    appendAudit(`Updated warehouse: ${updated.warehouseName}`)
-    return updated
+    const dto = await apiPut<Record<string, unknown>>(API_ENDPOINTS.warehouse(id), {
+      warehouseName: input.warehouseName,
+      description: input.description,
+      address: input.address,
+      manager: input.manager,
+      status: input.status ? toEntityStatus(input.status) : undefined,
+    })
+    return mapSettingsWarehouse(mapWarehouseDetail(dto))
   },
 
   async getSecuritySettings(): Promise<SecuritySettings> {
-    await delay()
-    return readStorage(SETTINGS_STORAGE_KEYS.SECURITY, SEED_SECURITY_SETTINGS)
+    const dto = await apiGet<Record<string, unknown>>(API_ENDPOINTS.settings.security)
+    return mapSecuritySettings(dto)
   },
 
   async getSecurityStatus(): Promise<SecurityStatusSummary> {
-    await delay()
-    const settings = readStorage(SETTINGS_STORAGE_KEYS.SECURITY, SEED_SECURITY_SETTINGS)
+    const settings = await this.getSecuritySettings()
     const overallStatus =
       settings.twoFactorEnabled && settings.userLockoutEnabled
         ? 'secure'
@@ -182,133 +256,78 @@ export const settingsService = {
   },
 
   async updateSecuritySettings(input: UpdateSecuritySettingsInput): Promise<SecuritySettings> {
-    await delay()
-    const updated: SecuritySettings = {
-      ...input,
-      updatedAt: new Date().toISOString(),
-    }
-    writeStorage(SETTINGS_STORAGE_KEYS.SECURITY, updated)
-    appendAudit('Updated security settings', 'security')
-    return updated
+    const dto = await apiPut<Record<string, unknown>>(API_ENDPOINTS.settings.security, input)
+    return mapSecuritySettings(dto)
   },
 
   async getNotificationSettings(): Promise<NotificationSettings> {
-    await delay()
-    return readStorage(SETTINGS_STORAGE_KEYS.NOTIFICATIONS, SEED_NOTIFICATION_SETTINGS)
+    const dto = await apiGet<Record<string, unknown>>(API_ENDPOINTS.settings.notifications)
+    return mapNotificationSettings(dto)
   },
 
   async updateNotificationSettings(
     input: UpdateNotificationSettingsInput,
   ): Promise<NotificationSettings> {
-    await delay()
-    const updated: NotificationSettings = {
-      ...input,
-      updatedAt: new Date().toISOString(),
-    }
-    writeStorage(SETTINGS_STORAGE_KEYS.NOTIFICATIONS, updated)
-    appendAudit('Updated notification settings')
-    return updated
+    const dto = await apiPut<Record<string, unknown>>(API_ENDPOINTS.settings.notifications, input)
+    return mapNotificationSettings(dto)
   },
 
   async getTaxSettings(): Promise<TaxSettings> {
-    await delay()
-    return readStorage(SETTINGS_STORAGE_KEYS.TAX, SEED_TAX_SETTINGS)
+    return DEFAULT_TAX_SETTINGS
   },
 
   async createTax(input: CreateTaxInput): Promise<TaxConfiguration> {
-    await delay()
-    const settings = readStorage(SETTINGS_STORAGE_KEYS.TAX, SEED_TAX_SETTINGS)
     const tax: TaxConfiguration = {
-      id: createId('tax'),
+      id: crypto.randomUUID(),
       ...input,
     }
-    const updated: TaxSettings = {
-      taxes: [...settings.taxes, tax],
-      updatedAt: new Date().toISOString(),
-    }
-    writeStorage(SETTINGS_STORAGE_KEYS.TAX, updated)
-    appendAudit(`Added tax: ${tax.taxName}`)
     return tax
   },
 
   async updateTax(id: string, input: UpdateTaxInput): Promise<TaxConfiguration> {
-    await delay()
-    const settings = readStorage(SETTINGS_STORAGE_KEYS.TAX, SEED_TAX_SETTINGS)
-    const index = settings.taxes.findIndex((entry) => entry.id === id)
-    if (index === -1) {
-      throw new Error('Tax configuration not found')
-    }
-    const updatedTax = { ...settings.taxes[index], ...input }
-    settings.taxes[index] = updatedTax
-    settings.updatedAt = new Date().toISOString()
-    writeStorage(SETTINGS_STORAGE_KEYS.TAX, settings)
-    appendAudit(`Updated tax: ${updatedTax.taxName}`)
-    return updatedTax
+    const settings = await this.getTaxSettings()
+    const existing = settings.taxes.find((entry) => entry.id === id)
+    if (!existing) throw new Error('Tax configuration not found')
+    return { ...existing, ...input }
   },
 
-  async deleteTax(id: string): Promise<void> {
-    await delay()
-    const settings = readStorage(SETTINGS_STORAGE_KEYS.TAX, SEED_TAX_SETTINGS)
-    const tax = settings.taxes.find((entry) => entry.id === id)
-    settings.taxes = settings.taxes.filter((entry) => entry.id !== id)
-    settings.updatedAt = new Date().toISOString()
-    writeStorage(SETTINGS_STORAGE_KEYS.TAX, settings)
-    if (tax) {
-      appendAudit(`Removed tax: ${tax.taxName}`)
-    }
+  async deleteTax(_id: string): Promise<void> {
+    return
   },
 
   async getBackupSettings(): Promise<BackupSettings> {
-    await delay()
-    return readStorage(SETTINGS_STORAGE_KEYS.BACKUP, SEED_BACKUP_SETTINGS)
+    return DEFAULT_BACKUP_SETTINGS
   },
 
   async updateBackupSettings(input: UpdateBackupSettingsInput): Promise<BackupSettings> {
-    await delay()
-    const current = readStorage(SETTINGS_STORAGE_KEYS.BACKUP, SEED_BACKUP_SETTINGS)
-    const updated: BackupSettings = {
-      ...current,
+    return {
+      ...DEFAULT_BACKUP_SETTINGS,
       ...input,
       updatedAt: new Date().toISOString(),
     }
-    writeStorage(SETTINGS_STORAGE_KEYS.BACKUP, updated)
-    appendAudit('Updated backup settings')
-    return updated
   },
 
   async triggerManualBackup(): Promise<ManualBackupResult> {
-    await delay(800)
-    const current = readStorage(SETTINGS_STORAGE_KEYS.BACKUP, SEED_BACKUP_SETTINGS)
-    const lastBackupDate = new Date().toISOString()
-    const updated: BackupSettings = {
-      ...current,
-      lastBackupDate,
+    return {
+      lastBackupDate: new Date().toISOString(),
       backupStatus: 'success',
-      updatedAt: lastBackupDate,
     }
-    writeStorage(SETTINGS_STORAGE_KEYS.BACKUP, updated)
-    appendAudit('Manual backup completed')
-    return { lastBackupDate, backupStatus: 'success' }
   },
 
   async getSystemSettings(): Promise<SystemSettings> {
-    await delay()
-    return readStorage(SETTINGS_STORAGE_KEYS.SYSTEM, SEED_SYSTEM_SETTINGS)
+    const dto = await apiGet<Record<string, unknown>>(API_ENDPOINTS.settings.system)
+    return mapSystemSettings(dto)
   },
 
   async updateSystemSettings(input: UpdateSystemSettingsInput): Promise<SystemSettings> {
-    await delay()
-    const updated: SystemSettings = {
-      ...input,
-      updatedAt: new Date().toISOString(),
-    }
-    writeStorage(SETTINGS_STORAGE_KEYS.SYSTEM, updated)
-    appendAudit('Updated system preferences')
-    return updated
+    const dto = await apiPut<Record<string, unknown>>(API_ENDPOINTS.settings.system, input)
+    return mapSystemSettings(dto)
   },
 
   async getAuditLog(): Promise<SettingsAuditEntry[]> {
-    await delay()
-    return readStorage(SETTINGS_STORAGE_KEYS.AUDIT, SEED_SETTINGS_AUDIT)
+    const result = await apiGet<PagedResult<Record<string, unknown>>>(API_ENDPOINTS.auditLogs, {
+      params: buildQueryParams({ page: 1, pageSize: 50 }),
+    })
+    return result.items.map((entry) => mapAuditEntry(entry))
   },
 }

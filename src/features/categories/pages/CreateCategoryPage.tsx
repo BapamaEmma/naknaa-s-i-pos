@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { CategoryForm } from '@/features/categories/components/CategoryForm'
 import { PageHeader } from '@/features/categories/components/PageHeader'
@@ -8,10 +9,23 @@ import type { CategoryFormOutput } from '@/features/categories/schemas/category.
 export function CreateCategoryPage() {
   const navigate = useNavigate()
   const createCategory = useCreateCategory()
+  const [error, setError] = useState<string | null>(null)
 
   const handleSubmit = async (values: CategoryFormOutput) => {
-    await createCategory.mutateAsync(values)
-    navigate(CATEGORY_ROUTES.LIST)
+    setError(null)
+
+    try {
+      await createCategory.mutateAsync(values)
+      navigate(CATEGORY_ROUTES.LIST)
+    } catch (err) {
+      const message =
+        typeof err === 'object' && err && 'message' in err
+          ? String((err as { message?: string }).message ?? '')
+          : err instanceof Error
+            ? err.message
+            : 'Unable to create category. Please try again.'
+      setError(message)
+    }
   }
 
   return (
@@ -22,6 +36,8 @@ export function CreateCategoryPage() {
         backTo={CATEGORY_ROUTES.LIST}
         backLabel="Back to categories"
       />
+
+      {error ? <p className="text-sm text-destructive">{error}</p> : null}
 
       <CategoryForm
         isSubmitting={createCategory.isPending}

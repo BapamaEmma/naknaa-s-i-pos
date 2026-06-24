@@ -24,7 +24,10 @@ export function EditProductPage() {
 
     const { sellingPrice, initialStock, ...productInput } = values
 
-    await updateProduct.mutateAsync({ id, input: { ...productInput, sku: product.sku } })
+    await updateProduct.mutateAsync({
+      id,
+      input: { ...productInput, sku: product.sku, sellingPrice },
+    })
 
     const primaryVariant = getPrimaryVariant(product.variants)
     if (primaryVariant) {

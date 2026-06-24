@@ -42,4 +42,4 @@ export const MOCK_SUPPLIERS = [
   'Local Vendor',
 ] as const
 
-export const DEFAULT_BRANCH_ID = 'branch-main'
+export const DEFAULT_BRANCH_ID = '22222222-2222-2222-2222-222222222201'
