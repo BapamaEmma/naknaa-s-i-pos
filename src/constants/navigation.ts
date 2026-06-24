@@ -132,7 +132,9 @@ export function canAccessRoute(role: UserRole, path: string): boolean {
   }
 
   const allItems = [...MAIN_NAV_ITEMS, ...ADMIN_NAV_ITEMS]
-  const navItem = allItems.find((item) => item.href === path)
+  const navItem = allItems.find(
+    (item) => path === item.href || path.startsWith(`${item.href}/`),
+  )
 
   if (!navItem) {
     return path === ROUTES.DASHBOARD

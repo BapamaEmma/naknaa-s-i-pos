@@ -7,6 +7,7 @@ public class DashboardDataDto
     public IReadOnlyList<DashboardKpiDto> Kpis { get; set; } = [];
     public IReadOnlyList<SalesChartPointDto> SalesChart { get; set; } = [];
     public IReadOnlyList<PaymentMethodSliceDto> PaymentMethods { get; set; } = [];
+    public IReadOnlyList<CategorySalesSliceDto> TopCategories { get; set; } = [];
     public IReadOnlyList<TopSellingProductDto> TopProducts { get; set; } = [];
     public IReadOnlyList<DashboardLowStockItemDto> LowStockItems { get; set; } = [];
     public IReadOnlyList<DashboardRecentSaleDto> RecentSales { get; set; } = [];
@@ -30,12 +31,21 @@ public class SalesChartPointDto
 {
     public string Label { get; set; } = string.Empty;
     public decimal Sales { get; set; }
+    public decimal Purchases { get; set; }
     public int Transactions { get; set; }
 }
 
 public class PaymentMethodSliceDto
 {
     public PaymentMethod Method { get; set; }
+    public string Label { get; set; } = string.Empty;
+    public decimal Value { get; set; }
+    public decimal Percentage { get; set; }
+}
+
+public class CategorySalesSliceDto
+{
+    public Guid CategoryId { get; set; }
     public string Label { get; set; } = string.Empty;
     public decimal Value { get; set; }
     public decimal Percentage { get; set; }

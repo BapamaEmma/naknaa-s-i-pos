@@ -74,7 +74,7 @@ apiClient.interceptors.response.use(
       }
     }
 
-    if (error.response?.status === 401) {
+    if (error.response?.status === 401 && !isAuthRoute) {
       tokenStorage.clearTokens()
       window.dispatchEvent(new Event('auth:session-expired'))
     }

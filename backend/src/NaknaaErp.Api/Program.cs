@@ -85,6 +85,13 @@ var app = builder.Build();
 app.UseSerilogRequestLogging();
 app.UseMiddleware<ExceptionHandlingMiddleware>();
 
+using (var scope = app.Services.CreateScope())
+{
+    var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+    await dbContext.Database.MigrateAsync();
+    await EnsureDefaultUsersSeeder.SeedAsync(app.Services);
+}
+
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -94,10 +101,8 @@ if (app.Environment.IsDevelopment())
         options.RoutePrefix = "swagger";
     });
 
-    using var scope = app.Services.CreateScope();
-    var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-    await dbContext.Database.MigrateAsync();
     await DatabaseSeeder.SeedAsync(app.Services);
+    await DemoDashboardSeeder.SeedAsync(app.Services);
 }
 
 app.UseHttpsRedirection();

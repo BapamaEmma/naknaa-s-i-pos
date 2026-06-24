@@ -1,5 +1,6 @@
 import type {
   BranchPerformance,
+  CategorySalesSlice,
   DashboardData,
   DashboardKpi,
   DashboardLowStockItem,
@@ -55,7 +56,17 @@ function mapSalesChartPoint(dto: Record<string, unknown>): SalesChartPoint {
   return {
     label: String(dto.label ?? ''),
     sales: Number(dto.sales ?? 0),
+    purchases: Number(dto.purchases ?? 0),
     transactions: Number(dto.transactions ?? 0),
+  }
+}
+
+function mapCategorySalesSlice(dto: Record<string, unknown>): CategorySalesSlice {
+  return {
+    categoryId: String(dto.categoryId ?? ''),
+    label: String(dto.label ?? 'Unknown'),
+    value: Number(dto.value ?? 0),
+    percentage: Number(dto.percentage ?? 0),
   }
 }
 
@@ -187,6 +198,11 @@ export const dashboardService = {
       paymentMethods: Array.isArray(dashboard.paymentMethods)
         ? dashboard.paymentMethods.map((item) =>
             mapPaymentMethodSlice(item as Record<string, unknown>),
+          )
+        : [],
+      topCategories: Array.isArray(dashboard.topCategories)
+        ? dashboard.topCategories.map((item) =>
+            mapCategorySalesSlice(item as Record<string, unknown>),
           )
         : [],
       topProducts: Array.isArray(dashboard.topProducts)

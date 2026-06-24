@@ -26,11 +26,8 @@ const periodOptions: { value: SalesChartPeriod; label: string }[] = [
 
 export function SalesChart({ data }: SalesChartProps) {
   const [period, setPeriod] = useState<SalesChartPeriod>('monthly')
-  const chartData = data[period].map((point) => ({
-    ...point,
-    purchases: Math.round(point.sales * 0.62),
-    target: Math.round(point.sales * 1.08),
-  }))
+  const chartData = data[period]
+  const hasData = chartData.some((point) => point.sales > 0 || point.purchases > 0)
 
   return (
     <Card className="dashboard-card border-0 shadow-none">
@@ -52,60 +49,61 @@ export function SalesChart({ data }: SalesChartProps) {
         </Select>
       </CardHeader>
       <CardContent>
-        <div className="h-72 w-full">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={chartData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }} barGap={6}>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-              <XAxis dataKey="label" tick={{ fontSize: 12, fill: '#64748b' }} axisLine={false} tickLine={false} />
-              <YAxis
-                tick={{ fontSize: 12, fill: '#64748b' }}
-                axisLine={false}
-                tickLine={false}
-                tickFormatter={(value) => `${Math.round(Number(value) / 1000)}k`}
-              />
-              <Tooltip
-                cursor={{ fill: 'rgba(148, 163, 184, 0.08)' }}
-                formatter={(value, name) => {
-                  if (typeof value !== 'number') return value
-                  if (name === 'Orders') return value
-                  return formatCurrency(value)
-                }}
-              />
-              <Legend wrapperStyle={{ fontSize: 12, paddingTop: 12 }} />
-              <Bar
-                dataKey="target"
-                name="Sales Target"
-                fill="#e2e8f0"
-                radius={[8, 8, 0, 0]}
-                maxBarSize={28}
-              />
-              <Bar
-                dataKey="sales"
-                name="Sales"
-                fill="url(#salesGradient)"
-                radius={[8, 8, 0, 0]}
-                maxBarSize={28}
-              />
-              <Bar
-                dataKey="purchases"
-                name="Purchases"
-                fill="url(#purchaseGradient)"
-                radius={[8, 8, 0, 0]}
-                maxBarSize={28}
-              />
-              <defs>
-                <linearGradient id="salesGradient" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#fb7185" />
-                  <stop offset="100%" stopColor="#f97316" />
-                </linearGradient>
-                <linearGradient id="purchaseGradient" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#818cf8" />
-                  <stop offset="100%" stopColor="#6366f1" />
-                </linearGradient>
-              </defs>
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
+        {!hasData ? (
+          <div className="flex h-72 items-center justify-center rounded-xl border border-dashed bg-muted/20 px-4 text-center">
+            <p className="text-sm text-muted-foreground">
+              No sales or purchases recorded for this period yet.
+            </p>
+          </div>
+        ) : (
+          <div className="h-72 w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={chartData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }} barGap={6}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                <XAxis dataKey="label" tick={{ fontSize: 12, fill: '#64748b' }} axisLine={false} tickLine={false} />
+                <YAxis
+                  tick={{ fontSize: 12, fill: '#64748b' }}
+                  axisLine={false}
+                  tickLine={false}
+                  tickFormatter={(value) => `${Math.round(Number(value) / 1000)}k`}
+                />
+                <Tooltip
+                  cursor={{ fill: 'rgba(148, 163, 184, 0.08)' }}
+                  formatter={(value, name) => {
+                    if (typeof value !== 'number') return value
+                    if (name === 'Orders') return value
+                    return formatCurrency(value)
+                  }}
+                />
+                <Legend wrapperStyle={{ fontSize: 12, paddingTop: 12 }} />
+                <Bar
+                  dataKey="sales"
+                  name="Sales"
+                  fill="url(#salesGradient)"
+                  radius={[8, 8, 0, 0]}
+                  maxBarSize={28}
+                />
+                <Bar
+                  dataKey="purchases"
+                  name="Purchases"
+                  fill="url(#purchaseGradient)"
+                  radius={[8, 8, 0, 0]}
+                  maxBarSize={28}
+                />
+                <defs>
+                  <linearGradient id="salesGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#fb7185" />
+                    <stop offset="100%" stopColor="#f97316" />
+                  </linearGradient>
+                  <linearGradient id="purchaseGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#818cf8" />
+                    <stop offset="100%" stopColor="#6366f1" />
+                  </linearGradient>
+                </defs>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        )}
       </CardContent>
     </Card>
   )

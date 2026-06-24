@@ -1,11 +1,16 @@
 import { Link } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner'
+import { BranchPerformanceChart } from '@/features/dashboard/components/BranchPerformanceChart'
 import { DashboardStatsCard } from '@/features/dashboard/components/DashboardStatsCard'
+import { LowStockTable } from '@/features/dashboard/components/LowStockTable'
 import { PaymentMethodChart } from '@/features/dashboard/components/PaymentMethodChart'
 import { RecentSalesTable } from '@/features/dashboard/components/RecentSalesTable'
 import { SalesChart } from '@/features/dashboard/components/SalesChart'
 import { StockSummaryCard } from '@/features/dashboard/components/StockSummaryCard'
+import { TopCategoriesChart } from '@/features/dashboard/components/TopCategoriesChart'
+import { TopProductsTable } from '@/features/dashboard/components/TopProductsTable'
+import { WelcomeSection } from '@/features/dashboard/components/WelcomeSection'
 import { useDashboard } from '@/features/dashboard/hooks/use-dashboard'
 import { ROUTES } from '@/constants/routes'
 
@@ -53,6 +58,8 @@ export function DashboardPage() {
 
   return (
     <div className="space-y-6 p-4 md:p-6 lg:p-8">
+      <WelcomeSection />
+
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {primaryKpis.map((kpi, index) => (
           <DashboardStatsCard key={kpi.id} kpi={kpi} index={index} />
@@ -63,7 +70,7 @@ export function DashboardPage() {
         <div className="xl:col-span-2">
           <SalesChart data={data.salesChart} />
         </div>
-        <PaymentMethodChart data={data.paymentMethods} />
+        <TopCategoriesChart data={data.topCategories} />
       </section>
 
       <section className="grid gap-6 xl:grid-cols-3">
@@ -72,6 +79,17 @@ export function DashboardPage() {
         </div>
         <StockSummaryCard overview={data.inventoryOverview} />
       </section>
+
+      <section className="grid gap-6 xl:grid-cols-2">
+        <TopProductsTable products={data.topProducts} />
+        <PaymentMethodChart data={data.paymentMethods} />
+      </section>
+
+      {data.lowStockItems.length > 0 ? <LowStockTable items={data.lowStockItems} /> : null}
+
+      {data.branchPerformance.some((branch) => branch.salesAmount > 0 || branch.transactions > 0) ? (
+        <BranchPerformanceChart branches={data.branchPerformance} />
+      ) : null}
     </div>
   )
 }

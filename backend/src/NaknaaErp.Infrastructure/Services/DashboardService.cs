@@ -62,8 +62,13 @@ public class DashboardService : IDashboardService
         var sales = await salesQuery.ToListAsync(cancellationToken);
         var today = DateTime.UtcNow.Date;
         var monthStart = new DateTime(today.Year, today.Month, 1, 0, 0, 0, DateTimeKind.Utc);
+        var yesterday = today.AddDays(-1);
+        var lastMonthStart = monthStart.AddMonths(-1);
+
         var todaySales = sales.Where(x => x.SaleDate.Date == today).ToList();
+        var yesterdaySales = sales.Where(x => x.SaleDate.Date == yesterday).ToList();
         var monthSales = sales.Where(x => x.SaleDate >= monthStart).ToList();
+        var lastMonthSales = sales.Where(x => x.SaleDate >= lastMonthStart && x.SaleDate < monthStart).ToList();
 
         var inventoryRecords = await _context.InventoryRecords
             .AsNoTracking()
@@ -76,16 +81,20 @@ public class DashboardService : IDashboardService
             .Select(g => new PaymentMethodSliceDto
             {
                 Method = g.Key,
-                Label = g.Key.ToString(),
+                Label = FormatPaymentMethod(g.Key),
                 Value = g.Sum(x => x.TotalAmount),
                 Percentage = paymentTotal == 0 ? 0 : Math.Round(g.Sum(x => x.TotalAmount) / paymentTotal * 100, 2)
             })
+            .OrderByDescending(x => x.Value)
             .ToList();
+
+        var topCategories = await BuildTopCategoriesAsync(monthStart, branchId, cancellationToken);
 
         var topProducts = await _context.SaleItems
             .AsNoTracking()
             .Include(x => x.Sale)
             .Where(x => x.Sale.Status == SaleStatus.Completed &&
+                        x.Sale.SaleDate >= monthStart &&
                         (!branchId.HasValue || x.Sale.BranchId == branchId))
             .GroupBy(x => new { x.ProductName, x.VariantName })
             .Select(g => new TopSellingProductDto
@@ -110,7 +119,7 @@ public class DashboardService : IDashboardService
                 VariantName = x.ProductVariant.VariantName,
                 CurrentStock = x.Quantity,
                 MinimumStock = x.MinimumStockLevel,
-                IsCritical = x.Quantity <= x.MinimumStockLevel / 2
+                IsCritical = x.Quantity <= Math.Max(1, x.MinimumStockLevel / 2)
             })
             .ToList();
 
@@ -142,50 +151,51 @@ public class DashboardService : IDashboardService
             })
             .ToListAsync(cancellationToken);
 
+        var inventoryValue = inventoryRecords.Sum(x => x.Quantity * x.ProductVariant.CostPrice);
+        var todayTotal = todaySales.Sum(x => x.TotalAmount);
+        var yesterdayTotal = yesterdaySales.Sum(x => x.TotalAmount);
+        var monthTotal = monthSales.Sum(x => x.TotalAmount);
+        var lastMonthTotal = lastMonthSales.Sum(x => x.TotalAmount);
+
         return new DashboardDataDto
         {
             Kpis =
             [
-                new DashboardKpiDto
-                {
-                    Id = "today-sales",
-                    Title = "Today's Sales",
-                    Value = todaySales.Sum(x => x.TotalAmount),
-                    FormattedValue = todaySales.Sum(x => x.TotalAmount).ToString("N2"),
-                    ChangePercent = 0,
-                    Trend = "neutral",
-                    Format = "currency"
-                },
-                new DashboardKpiDto
-                {
-                    Id = "monthly-revenue",
-                    Title = "Monthly Revenue",
-                    Value = monthSales.Sum(x => x.TotalAmount),
-                    FormattedValue = monthSales.Sum(x => x.TotalAmount).ToString("N2"),
-                    ChangePercent = 0,
-                    Trend = "up",
-                    Format = "currency"
-                },
-                new DashboardKpiDto
-                {
-                    Id = "inventory-value",
-                    Title = "Inventory Value",
-                    Value = inventoryRecords.Sum(x => x.Quantity * x.ProductVariant.CostPrice),
-                    FormattedValue = inventoryRecords.Sum(x => x.Quantity * x.ProductVariant.CostPrice).ToString("N2"),
-                    ChangePercent = 0,
-                    Trend = "neutral",
-                    Format = "currency"
-                }
+                BuildKpi(
+                    "today-sales",
+                    "Today's Sales",
+                    todayTotal,
+                    CalculateChangePercent(todayTotal, yesterdayTotal),
+                    "currency"),
+                BuildKpi(
+                    "monthly-revenue",
+                    "Monthly Revenue",
+                    monthTotal,
+                    CalculateChangePercent(monthTotal, lastMonthTotal),
+                    "currency"),
+                BuildKpi(
+                    "today-transactions",
+                    "Today's Transactions",
+                    todaySales.Count,
+                    CalculateChangePercent(todaySales.Count, yesterdaySales.Count),
+                    "number"),
+                BuildKpi(
+                    "inventory-value",
+                    "Inventory Value",
+                    inventoryValue,
+                    0,
+                    "currency")
             ],
             SalesChart = await GetSalesChartAsync(SalesChartPeriod.Daily, branchId, cancellationToken),
             PaymentMethods = paymentMethods,
+            TopCategories = topCategories,
             TopProducts = topProducts,
             LowStockItems = lowStock,
             RecentSales = recentSales,
             BranchPerformance = branchPerformance,
             InventoryOverview = new InventoryOverviewDto
             {
-                TotalInventoryValue = inventoryRecords.Sum(x => x.Quantity * x.ProductVariant.CostPrice),
+                TotalInventoryValue = inventoryValue,
                 TotalStockQuantity = inventoryRecords.Sum(x => x.Quantity),
                 LowStockCount = inventoryRecords.Count(x => x.Quantity > 0 && x.Quantity <= x.MinimumStockLevel),
                 OutOfStockCount = inventoryRecords.Count(x => x.Quantity <= 0)
@@ -210,21 +220,29 @@ public class DashboardService : IDashboardService
             .AsNoTracking()
             .Where(x => x.Status == SaleStatus.Completed);
 
+        var purchasesQuery = _context.Purchases
+            .AsNoTracking()
+            .Where(x => x.Status == PurchaseStatus.Received);
+
         if (branchId.HasValue)
         {
             salesQuery = salesQuery.Where(x => x.BranchId == branchId);
         }
 
         var now = DateTime.UtcNow;
-        salesQuery = period switch
+        var rangeStart = period switch
         {
-            SalesChartPeriod.Daily => salesQuery.Where(x => x.SaleDate >= now.Date.AddDays(-6)),
-            SalesChartPeriod.Weekly => salesQuery.Where(x => x.SaleDate >= now.Date.AddDays(-28)),
-            SalesChartPeriod.Monthly => salesQuery.Where(x => x.SaleDate >= now.Date.AddMonths(-11)),
-            _ => salesQuery
+            SalesChartPeriod.Daily => now.Date.AddDays(-6),
+            SalesChartPeriod.Weekly => now.Date.AddDays(-28),
+            SalesChartPeriod.Monthly => now.Date.AddMonths(-5),
+            _ => now.Date.AddDays(-6)
         };
 
+        salesQuery = salesQuery.Where(x => x.SaleDate >= rangeStart);
+        purchasesQuery = purchasesQuery.Where(x => x.PurchaseDate >= rangeStart);
+
         var sales = await salesQuery.ToListAsync(cancellationToken);
+        var purchases = await purchasesQuery.ToListAsync(cancellationToken);
 
         return period switch
         {
@@ -233,10 +251,12 @@ public class DashboardService : IDashboardService
                 {
                     var day = now.Date.AddDays(-6 + offset);
                     var daySales = sales.Where(x => x.SaleDate.Date == day).ToList();
+                    var dayPurchases = purchases.Where(x => x.PurchaseDate.Date == day).ToList();
                     return new SalesChartPointDto
                     {
                         Label = day.ToString("ddd"),
                         Sales = daySales.Sum(x => x.TotalAmount),
+                        Purchases = dayPurchases.Sum(x => x.TotalAmount),
                         Transactions = daySales.Count
                     };
                 }).ToList(),
@@ -246,26 +266,105 @@ public class DashboardService : IDashboardService
                     var weekStart = now.Date.AddDays(-28 + week * 7);
                     var weekEnd = weekStart.AddDays(7);
                     var weekSales = sales.Where(x => x.SaleDate >= weekStart && x.SaleDate < weekEnd).ToList();
+                    var weekPurchases = purchases.Where(x => x.PurchaseDate >= weekStart && x.PurchaseDate < weekEnd).ToList();
                     return new SalesChartPointDto
                     {
                         Label = $"Week {week + 1}",
                         Sales = weekSales.Sum(x => x.TotalAmount),
+                        Purchases = weekPurchases.Sum(x => x.TotalAmount),
                         Transactions = weekSales.Count
                     };
                 }).ToList(),
-            SalesChartPeriod.Monthly => Enumerable.Range(0, 12)
+            SalesChartPeriod.Monthly => Enumerable.Range(0, 6)
                 .Select(monthOffset =>
                 {
-                    var month = new DateTime(now.Year, now.Month, 1).AddMonths(-11 + monthOffset);
+                    var month = new DateTime(now.Year, now.Month, 1).AddMonths(-5 + monthOffset);
                     var monthSales = sales.Where(x => x.SaleDate.Year == month.Year && x.SaleDate.Month == month.Month).ToList();
+                    var monthPurchases = purchases.Where(x => x.PurchaseDate.Year == month.Year && x.PurchaseDate.Month == month.Month).ToList();
                     return new SalesChartPointDto
                     {
                         Label = month.ToString("MMM"),
                         Sales = monthSales.Sum(x => x.TotalAmount),
+                        Purchases = monthPurchases.Sum(x => x.TotalAmount),
                         Transactions = monthSales.Count
                     };
                 }).ToList(),
             _ => []
         };
     }
+
+    private async Task<IReadOnlyList<CategorySalesSliceDto>> BuildTopCategoriesAsync(
+        DateTime monthStart,
+        Guid? branchId,
+        CancellationToken cancellationToken)
+    {
+        var saleItems = await _context.SaleItems
+            .AsNoTracking()
+            .Include(x => x.Sale)
+            .Include(x => x.ProductVariant).ThenInclude(x => x.Product).ThenInclude(x => x.Category)
+            .Where(x => x.Sale.Status == SaleStatus.Completed &&
+                        x.Sale.SaleDate >= monthStart &&
+                        (!branchId.HasValue || x.Sale.BranchId == branchId))
+            .ToListAsync(cancellationToken);
+
+        var total = saleItems.Sum(x => x.TotalPrice);
+        if (total == 0)
+        {
+            return [];
+        }
+
+        return saleItems
+            .GroupBy(x => new { x.ProductVariant.Product.CategoryId, x.ProductVariant.Product.Category.Name })
+            .Select(g => new CategorySalesSliceDto
+            {
+                CategoryId = g.Key.CategoryId,
+                Label = g.Key.Name,
+                Value = g.Sum(x => x.TotalPrice),
+                Percentage = Math.Round(g.Sum(x => x.TotalPrice) / total * 100, 2)
+            })
+            .OrderByDescending(x => x.Value)
+            .Take(6)
+            .ToList();
+    }
+
+    private static DashboardKpiDto BuildKpi(
+        string id,
+        string title,
+        decimal value,
+        decimal changePercent,
+        string format)
+    {
+        var trend = changePercent > 0 ? "up" : changePercent < 0 ? "down" : "neutral";
+        var formattedValue = format == "currency"
+            ? value.ToString("C2", System.Globalization.CultureInfo.GetCultureInfo("en-GH"))
+            : value.ToString("N0");
+
+        return new DashboardKpiDto
+        {
+            Id = id,
+            Title = title,
+            Value = value,
+            FormattedValue = formattedValue,
+            ChangePercent = changePercent,
+            Trend = trend,
+            Format = format
+        };
+    }
+
+    private static decimal CalculateChangePercent(decimal current, decimal previous)
+    {
+        if (previous == 0)
+        {
+            return current > 0 ? 100 : 0;
+        }
+
+        return Math.Round((current - previous) / previous * 100, 1);
+    }
+
+    private static string FormatPaymentMethod(PaymentMethod method) =>
+        method switch
+        {
+            PaymentMethod.MobileMoney => "Mobile Money",
+            _ => "Cash"
+        };
 }

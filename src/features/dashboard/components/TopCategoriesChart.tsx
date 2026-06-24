@@ -1,25 +1,25 @@
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import type { PaymentMethodSlice } from '@/features/dashboard/types'
+import type { CategorySalesSlice } from '@/features/dashboard/types'
 import { formatCurrency } from '@/lib/format'
 
-const COLORS = ['#22c55e', '#3b82f6', '#a855f7', '#f59e0b']
+const COLORS = ['#22c55e', '#ef4444', '#3b82f6', '#a855f7', '#f59e0b', '#06b6d4']
 
-interface PaymentMethodChartProps {
-  data: PaymentMethodSlice[]
+interface TopCategoriesChartProps {
+  data: CategorySalesSlice[]
 }
 
-export function PaymentMethodChart({ data }: PaymentMethodChartProps) {
+export function TopCategoriesChart({ data }: TopCategoriesChartProps) {
   return (
     <Card className="dashboard-card h-full border-0 shadow-none">
       <CardHeader>
-        <CardTitle className="text-base font-semibold">Payment Methods</CardTitle>
-        <p className="text-sm text-muted-foreground">How customers paid this month</p>
+        <CardTitle className="text-base font-semibold">Top Categories</CardTitle>
+        <p className="text-sm text-muted-foreground">Sales revenue by product category this month</p>
       </CardHeader>
       <CardContent>
         {data.length === 0 ? (
           <div className="flex h-56 items-center justify-center rounded-xl border border-dashed bg-muted/20 px-4 text-center">
-            <p className="text-sm text-muted-foreground">No payment data recorded this month yet.</p>
+            <p className="text-sm text-muted-foreground">No category sales recorded this month yet.</p>
           </div>
         ) : (
           <>
@@ -38,7 +38,7 @@ export function PaymentMethodChart({ data }: PaymentMethodChartProps) {
                     strokeWidth={0}
                   >
                     {data.map((entry, index) => (
-                      <Cell key={entry.method} fill={COLORS[index % COLORS.length]} />
+                      <Cell key={entry.categoryId} fill={COLORS[index % COLORS.length]} />
                     ))}
                   </Pie>
                   <Tooltip formatter={(value) => (typeof value === 'number' ? formatCurrency(value) : value)} />
@@ -48,7 +48,7 @@ export function PaymentMethodChart({ data }: PaymentMethodChartProps) {
 
             <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-2">
               {data.map((item, index) => (
-                <div key={item.method} className="flex items-center gap-2 text-sm">
+                <div key={item.categoryId} className="flex items-center gap-2 text-sm">
                   <span
                     className="h-2.5 w-2.5 shrink-0 rounded-full"
                     style={{ backgroundColor: COLORS[index % COLORS.length] }}

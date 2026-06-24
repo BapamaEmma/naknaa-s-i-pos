@@ -18,11 +18,19 @@ export interface DashboardKpi {
 export interface SalesChartPoint {
   label: string
   sales: number
+  purchases: number
   transactions: number
 }
 
 export interface PaymentMethodSlice {
   method: PaymentMethod
+  label: string
+  value: number
+  percentage: number
+}
+
+export interface CategorySalesSlice {
+  categoryId: string
   label: string
   value: number
   percentage: number
@@ -80,6 +88,7 @@ export interface DashboardData {
   kpis: DashboardKpi[]
   salesChart: Record<SalesChartPeriod, SalesChartPoint[]>
   paymentMethods: PaymentMethodSlice[]
+  topCategories: CategorySalesSlice[]
   topProducts: TopSellingProduct[]
   lowStockItems: DashboardLowStockItem[]
   recentSales: DashboardRecentSale[]

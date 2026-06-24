@@ -1,6 +1,6 @@
 import { Navigate } from 'react-router-dom'
 import { canAccessRoute } from '@/constants/navigation'
-import { ROUTES } from '@/constants/routes'
+import { getDefaultAuthenticatedRoute } from '@/constants/routes'
 import { useAuth } from '@/features/auth/hooks/use-auth'
 
 interface RoleGuardProps {
@@ -16,7 +16,7 @@ export function RoleGuard({ children, path }: RoleGuardProps) {
   }
 
   if (!canAccessRoute(user.role, path)) {
-    return <Navigate to={ROUTES.DASHBOARD} replace />
+    return <Navigate to={getDefaultAuthenticatedRoute(user.role)} replace />
   }
 
   return <>{children}</>

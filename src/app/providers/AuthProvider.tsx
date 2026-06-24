@@ -44,6 +44,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     try {
       const session = await authService.login(credentials)
       setUser(session.user)
+      return session
     } finally {
       setIsLoading(false)
     }

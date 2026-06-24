@@ -22,7 +22,7 @@ export interface AuthState {
 }
 
 export interface AuthContextValue extends AuthState {
-  login: (credentials: LoginCredentials) => Promise<void>
+  login: (credentials: LoginCredentials) => Promise<AuthResponse>
   logout: () => void
   hasRole: (roles: UserRole | UserRole[]) => boolean
 }

@@ -103,7 +103,13 @@ public static class DatabaseSeeder
 
         var storekeeperCodes = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
-            "products.view", "inventory.view", "inventory.manage", "purchases.view", "purchases.manage"
+            "products.view",
+            "inventory.view",
+            "inventory.manage",
+            "purchases.view",
+            "purchases.manage",
+            "sales.view",
+            "sales.manage",
         };
 
         var storekeeperLinks = permissions
