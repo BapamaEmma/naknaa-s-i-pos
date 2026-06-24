@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 import { ArrowLeft } from 'lucide-react'
+import { useSetPageTitle } from '@/app/providers/PageTitleProvider'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
@@ -20,6 +21,8 @@ export function PageHeader({
   action,
   className,
 }: PageHeaderProps) {
+  useSetPageTitle(title)
+
   return (
     <div
       className={cn(
@@ -36,12 +39,9 @@ export function PageHeader({
             </Link>
           </Button>
         ) : null}
-        <div className="min-w-0">
-          <h1 className="text-balance text-xl font-semibold tracking-tight sm:text-2xl">{title}</h1>
-          {description ? (
-            <p className="mt-1 text-pretty text-sm text-muted-foreground">{description}</p>
-          ) : null}
-        </div>
+        {description ? (
+          <p className="text-pretty text-sm text-muted-foreground">{description}</p>
+        ) : null}
       </div>
       {action ? (
         <div className="flex w-full shrink-0 flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:justify-end [&_a]:w-full [&_button]:w-full sm:[&_a]:w-auto sm:[&_button]:w-auto">

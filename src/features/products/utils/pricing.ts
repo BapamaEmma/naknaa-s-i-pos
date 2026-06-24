@@ -8,6 +8,11 @@ export interface ProductPricingSummary {
   singleVariant: ProductVariant | null
 }
 
+export function getPrimaryVariant(variants: ProductVariant[]): ProductVariant | null {
+  if (variants.length === 0) return null
+  return variants.find((variant) => variant.name === 'Standard') ?? variants[0]
+}
+
 export function getProductPricingSummary(variants: ProductVariant[]): ProductPricingSummary | null {
   if (variants.length === 0) return null
 

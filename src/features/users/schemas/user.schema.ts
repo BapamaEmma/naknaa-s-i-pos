@@ -11,7 +11,41 @@ const optionalUsername = z.union([
       /^[a-zA-Z0-9._-]+$/,
       'Username can only contain letters, numbers, dots, dashes, and underscores',
     ),
+  z.string().trim().email('Enter a valid email address in the Email field'),
 ])
+
+function usernameFromEmailLocalPart(email: string): string {
+  const localPart = email.split('@')[0] ?? ''
+  return localPart.replace(/[^a-zA-Z0-9._-]/g, '')
+}
+
+function normalizeUserContactFields<T extends { username: string; email: string }>(values: T): T {
+  const username = values.username.trim()
+  const email = values.email.trim()
+
+  if (!username.includes('@') || !z.string().email().safeParse(username).success) {
+    return { ...values, username, email }
+  }
+
+  const derivedUsername = usernameFromEmailLocalPart(username)
+
+  if (!email) {
+    return {
+      ...values,
+      email: username,
+      username: derivedUsername.length >= 3 ? derivedUsername : '',
+    }
+  }
+
+  if (username.toLowerCase() === email.toLowerCase()) {
+    return {
+      ...values,
+      username: derivedUsername.length >= 3 ? derivedUsername : '',
+    }
+  }
+
+  return { ...values, username, email }
+}
 
 const baseUserFields = {
   firstName: z.string().trim().min(1, 'First name is required'),
@@ -35,11 +69,14 @@ export const createUserFormSchema = z
     message: 'Passwords do not match',
     path: ['confirmPassword'],
   })
+  .transform(normalizeUserContactFields)
 
-export const editUserFormSchema = z.object({
-  ...baseUserFields,
-  status: z.enum(['active', 'inactive', 'suspended']),
-})
+export const editUserFormSchema = z
+  .object({
+    ...baseUserFields,
+    status: z.enum(['active', 'inactive', 'suspended']),
+  })
+  .transform(normalizeUserContactFields)
 
 export const resetPasswordFormSchema = z
   .object({

@@ -39,8 +39,10 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
     try {
       await login(values)
       onSuccess?.()
-    } catch {
-      setError('Unable to sign in. Please check your credentials and try again.')
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : 'Unable to sign in. Please check your credentials and try again.'
+      setError(message)
     }
   })
 

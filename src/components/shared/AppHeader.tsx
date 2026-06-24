@@ -1,5 +1,6 @@
 import { Bell, LogOut, Menu } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { usePageTitle } from '@/app/providers/PageTitleProvider'
 import { useAuth } from '@/hooks/useAuth'
 
 interface AppHeaderProps {
@@ -8,21 +9,26 @@ interface AppHeaderProps {
 
 export function AppHeader({ onMenuClick }: AppHeaderProps) {
   const { user, logout } = useAuth()
+  const pageTitle = usePageTitle()
 
   const initials = user ? `${user.firstName[0] ?? ''}${user.lastName[0] ?? ''}` : 'NA'
 
   return (
-    <header className="safe-top flex h-16 shrink-0 items-center border-b border-border/60 bg-card px-4 md:justify-end md:px-6">
+    <header className="safe-top flex h-16 shrink-0 items-center gap-3 border-b border-border/60 bg-card px-4 md:px-6">
       <Button
         type="button"
         variant="ghost"
         size="icon"
-        className="mr-auto shrink-0 text-muted-foreground md:hidden"
+        className="shrink-0 text-muted-foreground md:hidden"
         onClick={onMenuClick}
         aria-label="Open navigation menu"
       >
         <Menu className="h-5 w-5" />
       </Button>
+
+      <div className="mr-auto min-w-0 flex-1">
+        <h1 className="truncate text-lg font-semibold tracking-tight sm:text-xl md:text-2xl">{pageTitle}</h1>
+      </div>
 
       <div className="flex shrink-0 items-center gap-2 sm:gap-3">
         <Button

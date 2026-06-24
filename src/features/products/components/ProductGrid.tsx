@@ -2,7 +2,6 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
   Eye,
-  Layers3,
   MoreHorizontal,
   Package,
   Pencil,
@@ -122,12 +121,6 @@ export function ProductGrid({ data, isLoading, onDelete }: ProductGridProps) {
                         Edit
                       </Link>
                     </DropdownMenuItem>
-                    <DropdownMenuItem asChild>
-                      <Link to={PRODUCT_ROUTES.VARIANTS(product.id)}>
-                        <Layers3 className="h-4 w-4" />
-                        Manage Variants
-                      </Link>
-                    </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem
                       className="text-destructive focus:text-destructive"
@@ -160,9 +153,8 @@ export function ProductGrid({ data, isLoading, onDelete }: ProductGridProps) {
               </p>
             </CardContent>
 
-            <CardFooter className="flex items-center justify-between border-t px-4 py-3 text-sm text-muted-foreground">
-              <span>{product.variantCount} variant{product.variantCount === 1 ? '' : 's'}</span>
-              <span className="truncate">{product.sku}</span>
+            <CardFooter className="flex items-center justify-end border-t px-4 py-3 text-sm text-muted-foreground">
+              <span className="truncate">{product.sku || 'No SKU'}</span>
             </CardFooter>
           </Card>
         ))}

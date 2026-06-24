@@ -17,6 +17,7 @@ import {
 import type { LucideIcon } from 'lucide-react'
 import { ROUTES } from '@/constants/routes'
 import { USER_ROLES, SHOP_STAFF_ROLES, type UserRole } from '@/constants/roles'
+import { canAccessReportRoute } from '@/features/reports/constants'
 
 const shopStaff = SHOP_STAFF_ROLES
 
@@ -47,6 +48,12 @@ export const MAIN_NAV_ITEMS: NavItem[] = [
     roles: [USER_ROLES.ADMIN, ...shopStaff],
   },
   {
+    title: 'Suppliers',
+    href: ROUTES.SUPPLIERS,
+    icon: Truck,
+    roles: [USER_ROLES.ADMIN, ...shopStaff],
+  },
+  {
     title: 'Customers',
     href: ROUTES.CUSTOMERS,
     icon: UserCircle,
@@ -71,12 +78,6 @@ export const MAIN_NAV_ITEMS: NavItem[] = [
     roles: [USER_ROLES.ADMIN, ...shopStaff],
   },
   {
-    title: 'Suppliers',
-    href: ROUTES.SUPPLIERS,
-    icon: Truck,
-    roles: [USER_ROLES.ADMIN, ...shopStaff],
-  },
-  {
     title: 'Services',
     href: ROUTES.SERVICES,
     icon: Wrench,
@@ -86,7 +87,7 @@ export const MAIN_NAV_ITEMS: NavItem[] = [
     title: 'Reports',
     href: ROUTES.REPORTS,
     icon: FileBarChart,
-    roles: [USER_ROLES.ADMIN],
+    roles: [USER_ROLES.ADMIN, ...shopStaff],
   },
 ]
 
@@ -126,6 +127,10 @@ export function getNavItemsForRole(role: UserRole): NavItem[] {
 }
 
 export function canAccessRoute(role: UserRole, path: string): boolean {
+  if (path.startsWith('/reports')) {
+    return canAccessReportRoute(role, path)
+  }
+
   const allItems = [...MAIN_NAV_ITEMS, ...ADMIN_NAV_ITEMS]
   const navItem = allItems.find((item) => item.href === path)
 
@@ -137,16 +142,34 @@ export function canAccessRoute(role: UserRole, path: string): boolean {
 }
 
 export function getPageTitleFromPath(pathname: string): string {
+  if (pathname.startsWith('/reports')) {
+    if (pathname === '/reports') return 'Reports & Analytics'
+    const segment = pathname.split('/').filter(Boolean).pop()
+    if (!segment) return 'Reports & Analytics'
+    return segment
+      .split('-')
+      .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+      .join(' ')
+  }
+
   const allItems = [...MAIN_NAV_ITEMS, ...ADMIN_NAV_ITEMS]
   const match = allItems
     .filter((item) => pathname === item.href || pathname.startsWith(`${item.href}/`))
     .sort((a, b) => b.href.length - a.href.length)[0]
 
-  if (match?.href === ROUTES.DASHBOARD || pathname.startsWith(ROUTES.DASHBOARD)) {
-    return 'Dashboard Overview'
-  }
-
   if (match) {
+    if (pathname.endsWith('/create')) {
+      return `Create ${match.title.replace(/s$/, '')}`
+    }
+
+    if (pathname.includes('/edit')) {
+      return `Edit ${match.title.replace(/s$/, '')}`
+    }
+
+    if (match.href === ROUTES.DASHBOARD || pathname.startsWith(ROUTES.DASHBOARD)) {
+      return 'Dashboard Overview'
+    }
+
     return match.title
   }
 

@@ -17,11 +17,12 @@ import {
   type ProductWithPricingFormInput,
   type ProductWithPricingFormOutput,
 } from '@/features/products/schemas/product.schema'
-import type { Category, Product } from '@/features/products/types'
+import type { Category, ProductDetail } from '@/features/products/types'
+import { getPrimaryVariant } from '@/features/products/utils/pricing'
 
 interface ProductFormProps {
   categories: Category[]
-  product?: Product | null
+  product?: ProductDetail | null
   requirePricing?: boolean
   isSubmitting?: boolean
   submitLabel?: string
@@ -77,6 +78,8 @@ export function ProductForm({
 
   useEffect(() => {
     if (product) {
+      const primaryVariant = requirePricing ? getPrimaryVariant(product.variants) : null
+
       reset({
         name: product.name,
         categoryId: product.categoryId,
@@ -87,7 +90,14 @@ export function ProductForm({
         warrantyMonths: product.warrantyMonths,
         imageUrl: product.imageUrl,
         isActive: product.isActive ? 'true' : 'false',
-        ...(requirePricing ? defaultPricingValues : {}),
+        ...(requirePricing
+          ? {
+              costPrice: primaryVariant?.costPrice ?? 0,
+              sellingPrice: primaryVariant?.sellingPrice ?? 0,
+              initialStock: primaryVariant?.currentStock ?? 0,
+              minimumStock: primaryVariant?.minimumStock ?? 0,
+            }
+          : {}),
       })
       setImagePreview(product.imageUrl)
       return
@@ -235,7 +245,7 @@ export function ProductForm({
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="initialStock">Initial Stock</Label>
+                <Label htmlFor="initialStock">{product ? 'Current Stock' : 'Initial Stock'}</Label>
                 <Input id="initialStock" type="number" min="0" {...register('initialStock')} />
                 {errors.initialStock ? (
                   <p className="text-sm text-destructive">{errors.initialStock.message}</p>

@@ -20,7 +20,7 @@ export function InventorySummaryCards({ summary }: InventorySummaryCardsProps) {
       icon: Wallet,
     },
     {
-      title: 'Low Stock Variants',
+      title: 'Low Stock Items',
       value: summary.lowStockVariants.toLocaleString(),
       icon: TrendingDown,
     },

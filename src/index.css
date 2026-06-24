@@ -165,4 +165,19 @@
   .workspace-shell {
     @apply bg-workspace;
   }
+
+  @media print {
+    .print\\:hidden {
+      display: none !important;
+    }
+
+    .report-print-root {
+      padding: 0;
+    }
+
+    .report-print-section {
+      break-inside: avoid;
+      box-shadow: none !important;
+    }
+  }
 }

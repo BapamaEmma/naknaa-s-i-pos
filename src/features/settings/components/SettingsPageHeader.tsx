@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 import { ArrowLeft } from 'lucide-react'
+import { useSetPageTitle } from '@/app/providers/PageTitleProvider'
 import { Button } from '@/components/ui/button'
 
 interface SettingsPageHeaderProps {
@@ -17,6 +18,8 @@ export function SettingsPageHeader({
   backLabel = 'Back to settings',
   action,
 }: SettingsPageHeaderProps) {
+  useSetPageTitle(title)
+
   return (
     <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
       <div className="space-y-3">
@@ -28,10 +31,7 @@ export function SettingsPageHeader({
             </Link>
           </Button>
         ) : null}
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
-          {description ? <p className="mt-1 text-sm text-muted-foreground">{description}</p> : null}
-        </div>
+        {description ? <p className="text-sm text-muted-foreground">{description}</p> : null}
       </div>
       {action ? <div className="flex shrink-0 flex-wrap gap-2">{action}</div> : null}
     </div>

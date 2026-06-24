@@ -7,10 +7,8 @@ import { PageHeader } from '@/features/products/components/PageHeader'
 import { ProductForm } from '@/features/products/components/ProductForm'
 import { PRODUCT_ROUTES } from '@/features/products/constants'
 import { useCategories, useProduct, useUpdateProduct } from '@/features/products/hooks/use-products'
-import type {
-  ProductFormOutput,
-  ProductWithPricingFormOutput,
-} from '@/features/products/schemas/product.schema'
+import type { ProductWithPricingFormOutput } from '@/features/products/schemas/product.schema'
+import { getPrimaryVariant } from '@/features/products/utils/pricing'
 import { variantService } from '@/services/products/variantService'
 
 export function EditProductPage() {
@@ -20,14 +18,25 @@ export function EditProductPage() {
   const { data: categories = [] } = useCategories()
   const { data: product, isLoading, isError } = useProduct(id)
   const updateProduct = useUpdateProduct()
-  const requirePricing = Boolean(product && product.variants.length === 0)
 
-  const handleSubmit = async (values: ProductFormOutput | ProductWithPricingFormOutput) => {
-    if (requirePricing) {
-      const { costPrice, sellingPrice, initialStock, minimumStock, ...productInput } =
-        values as ProductWithPricingFormOutput
+  const handleSubmit = async (values: ProductWithPricingFormOutput) => {
+    if (!product) return
 
-      await updateProduct.mutateAsync({ id, input: productInput })
+    const { costPrice, sellingPrice, initialStock, minimumStock, ...productInput } = values
+
+    await updateProduct.mutateAsync({ id, input: productInput })
+
+    const primaryVariant = getPrimaryVariant(product.variants)
+    if (primaryVariant) {
+      await variantService.updateVariant(id, primaryVariant.id, {
+        name: 'Standard',
+        variantType: 'Default',
+        costPrice,
+        sellingPrice,
+        currentStock: initialStock,
+        minimumStock,
+      })
+    } else {
       await variantService.createVariant(id, {
         name: 'Standard',
         variantType: 'Default',
@@ -37,12 +46,10 @@ export function EditProductPage() {
         minimumStock,
         isActive: true,
       })
-
-      queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.PRODUCT_VARIANTS, id] })
-    } else {
-      await updateProduct.mutateAsync({ id, input: values as ProductFormOutput })
     }
 
+    queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.PRODUCTS, id] })
+    queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.PRODUCT_VARIANTS, id] })
     navigate(PRODUCT_ROUTES.DETAIL(id))
   }
 
@@ -77,10 +84,10 @@ export function EditProductPage() {
       <ProductForm
         categories={categories}
         product={product}
-        requirePricing={requirePricing}
+        requirePricing
         isSubmitting={updateProduct.isPending}
         submitLabel="Save changes"
-        onSubmit={handleSubmit}
+        onSubmit={(values) => handleSubmit(values as ProductWithPricingFormOutput)}
       />
     </div>
   )

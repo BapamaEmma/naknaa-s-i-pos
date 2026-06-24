@@ -1,4 +1,4 @@
-import { createBrowserRouter, type RouteObject } from 'react-router-dom'
+import { createBrowserRouter, Navigate, type RouteObject } from 'react-router-dom'
 import { AuthLayout } from '@/app/layouts/AuthLayout'
 import { DashboardLayout } from '@/app/layouts/DashboardLayout'
 import {
@@ -12,7 +12,6 @@ import { DashboardPage } from '@/features/dashboard/pages/DashboardPage'
 import {
   AddProductPage,
   EditProductPage,
-  ManageVariantsPage,
   ProductDetailsPage,
   ProductListPage,
   PRODUCT_ROUTES,
@@ -48,7 +47,6 @@ import {
   SalesHistoryPage,
   SALES_ROUTES,
 } from '@/features/sales'
-import { Navigate } from 'react-router-dom'
 import {
   CreateSupplierPage,
   CreateSupplierProductPage,
@@ -78,7 +76,20 @@ import {
   ReceiveStockPage,
   PURCHASE_ROUTES,
 } from '@/features/purchases'
-import { ReportsPage } from '@/features/reports/pages/ReportsPage'
+import {
+  CustomerReportPage,
+  InventoryReportPage,
+  ProfitLossReportPage,
+  PurchaseReportPage,
+  REPORT_ROUTES,
+  ReportsDashboardPage,
+  ReportRouteGuard,
+  SalesReportPage,
+  ServiceReportPage,
+  SupplierReportPage,
+  UserReportPage,
+  WarehouseReportPage,
+} from '@/features/reports'
 import {
   CreateUserPage,
   EditUserPage,
@@ -136,7 +147,7 @@ const productRoutes: RouteObject[] = [
   },
   {
     path: '/products/:id/variants',
-    element: withRoleGuard(ROUTES.PRODUCTS, <ManageVariantsPage />),
+    element: withRoleGuard(ROUTES.PRODUCTS, <Navigate to=".." replace />),
   },
   {
     path: '/products/:id',
@@ -391,6 +402,89 @@ const purchaseRoutes: RouteObject[] = [
   },
 ]
 
+const reportRoutes: RouteObject[] = [
+  {
+    path: ROUTES.REPORTS,
+    element: (
+      <ReportRouteGuard path={REPORT_ROUTES.ROOT}>
+        <ReportsDashboardPage />
+      </ReportRouteGuard>
+    ),
+  },
+  {
+    path: REPORT_ROUTES.SALES,
+    element: (
+      <ReportRouteGuard path={REPORT_ROUTES.SALES}>
+        <SalesReportPage />
+      </ReportRouteGuard>
+    ),
+  },
+  {
+    path: REPORT_ROUTES.INVENTORY,
+    element: (
+      <ReportRouteGuard path={REPORT_ROUTES.INVENTORY}>
+        <InventoryReportPage />
+      </ReportRouteGuard>
+    ),
+  },
+  {
+    path: REPORT_ROUTES.PURCHASES,
+    element: (
+      <ReportRouteGuard path={REPORT_ROUTES.PURCHASES}>
+        <PurchaseReportPage />
+      </ReportRouteGuard>
+    ),
+  },
+  {
+    path: REPORT_ROUTES.WAREHOUSES,
+    element: (
+      <ReportRouteGuard path={REPORT_ROUTES.WAREHOUSES}>
+        <WarehouseReportPage />
+      </ReportRouteGuard>
+    ),
+  },
+  {
+    path: REPORT_ROUTES.CUSTOMERS,
+    element: (
+      <ReportRouteGuard path={REPORT_ROUTES.CUSTOMERS}>
+        <CustomerReportPage />
+      </ReportRouteGuard>
+    ),
+  },
+  {
+    path: REPORT_ROUTES.SUPPLIERS,
+    element: (
+      <ReportRouteGuard path={REPORT_ROUTES.SUPPLIERS}>
+        <SupplierReportPage />
+      </ReportRouteGuard>
+    ),
+  },
+  {
+    path: REPORT_ROUTES.SERVICES,
+    element: (
+      <ReportRouteGuard path={REPORT_ROUTES.SERVICES}>
+        <ServiceReportPage />
+      </ReportRouteGuard>
+    ),
+  },
+  {
+    path: REPORT_ROUTES.USERS,
+    element: (
+      <ReportRouteGuard path={REPORT_ROUTES.USERS}>
+        <UserReportPage />
+      </ReportRouteGuard>
+    ),
+  },
+  {
+    path: REPORT_ROUTES.PROFIT_LOSS,
+    element: (
+      <ReportRouteGuard path={REPORT_ROUTES.PROFIT_LOSS}>
+        <ProfitLossReportPage />
+      </ReportRouteGuard>
+    ),
+  },
+]
+
 const dashboardRoutes: RouteObject[] = [
   {
     path: ROUTES.DASHBOARD,
@@ -406,10 +500,7 @@ const dashboardRoutes: RouteObject[] = [
   ...warehouseRoutes,
   ...serviceRoutes,
   ...purchaseRoutes,
-  {
-    path: ROUTES.REPORTS,
-    element: withRoleGuard(ROUTES.REPORTS, <ReportsPage />),
-  },
+  ...reportRoutes,
   {
     path: ROUTES.BRANCHES,
     element: withRoleGuard(ROUTES.BRANCHES, <BranchesPage />),

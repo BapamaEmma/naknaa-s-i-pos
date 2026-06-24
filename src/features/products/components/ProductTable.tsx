@@ -1,7 +1,6 @@
 import { Link } from 'react-router-dom'
 import {
   Eye,
-  Layers3,
   MoreHorizontal,
   Pencil,
   Trash2,
@@ -81,7 +80,6 @@ export function ProductTable({ data, isLoading, onDelete }: ProductTableProps) {
             <TableHead className="hidden md:table-cell">Category</TableHead>
             <TableHead className="hidden lg:table-cell">Brand</TableHead>
             <TableHead className="hidden lg:table-cell">Model</TableHead>
-            <TableHead className="hidden sm:table-cell">Variants</TableHead>
             <TableHead>Status</TableHead>
             <TableHead className="text-right">Actions</TableHead>
           </TableRow>
@@ -106,7 +104,6 @@ export function ProductTable({ data, isLoading, onDelete }: ProductTableProps) {
               <TableCell className="hidden md:table-cell">{product.categoryName}</TableCell>
               <TableCell className="hidden lg:table-cell">{product.brand}</TableCell>
               <TableCell className="hidden lg:table-cell">{product.model || '—'}</TableCell>
-              <TableCell className="hidden sm:table-cell">{product.variantCount}</TableCell>
               <TableCell>
                 <Badge variant={product.isActive ? 'success' : 'secondary'}>
                   {product.isActive ? 'Active' : 'Inactive'}
@@ -130,12 +127,6 @@ export function ProductTable({ data, isLoading, onDelete }: ProductTableProps) {
                       <Link to={PRODUCT_ROUTES.EDIT(product.id)}>
                         <Pencil className="h-4 w-4" />
                         Edit
-                      </Link>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem asChild>
-                      <Link to={PRODUCT_ROUTES.VARIANTS(product.id)}>
-                        <Layers3 className="h-4 w-4" />
-                        Manage Variants
                       </Link>
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />

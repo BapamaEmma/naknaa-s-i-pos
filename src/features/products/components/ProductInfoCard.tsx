@@ -80,15 +80,6 @@ export function ProductInfoCard({ product }: ProductInfoCardProps) {
                   {formatPriceRange(pricing.sellingPrice.min, pricing.sellingPrice.max)}
                 </p>
               </div>
-              {pricing.isSingle && pricing.singleVariant ? (
-                <p className="text-sm text-muted-foreground sm:col-span-2">
-                  Based on variant: {pricing.singleVariant.name}
-                </p>
-              ) : (
-                <p className="text-sm text-muted-foreground sm:col-span-2">
-                  Price range across {product.variants.length} variants
-                </p>
-              )}
             </div>
           ) : (
             <div className="mt-3 flex flex-col gap-3 rounded-lg border border-dashed p-4 sm:flex-row sm:items-center sm:justify-between">
@@ -97,7 +88,7 @@ export function ProductInfoCard({ product }: ProductInfoCardProps) {
                 <div>
                   <p className="text-sm font-medium">No price set</p>
                   <p className="mt-1 text-sm text-muted-foreground">
-                    Add a variant with cost and selling prices to sell this product.
+                    Edit this product to set cost and selling prices.
                   </p>
                 </div>
               </div>

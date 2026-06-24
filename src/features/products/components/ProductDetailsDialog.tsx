@@ -1,6 +1,5 @@
 import { Link } from 'react-router-dom'
-import { ExternalLink, Layers3, Pencil } from 'lucide-react'
-import { Badge } from '@/components/ui/badge'
+import { ExternalLink, Pencil } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -10,20 +9,11 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner'
 import { InventorySummaryCards } from '@/features/products/components/InventorySummaryCards'
 import { ProductInfoCard } from '@/features/products/components/ProductInfoCard'
 import { PRODUCT_ROUTES } from '@/features/products/constants'
 import { useProduct } from '@/features/products/hooks/use-products'
-import { formatCurrency } from '@/lib/format'
 
 interface ProductDetailsDialogProps {
   productId: string | null
@@ -66,47 +56,9 @@ export function ProductDetailsDialog({
             <div className="space-y-4">
               <ProductInfoCard product={product} />
               <InventorySummaryCards summary={product.inventorySummary} />
-
-              {product.variants.length > 0 ? (
-                <div className="space-y-3">
-                  <h3 className="text-sm font-semibold">Variants</h3>
-                  <div className="overflow-x-auto rounded-lg border">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Variant</TableHead>
-                          <TableHead>Selling Price</TableHead>
-                          <TableHead>Stock</TableHead>
-                          <TableHead>Status</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {product.variants.map((variant) => (
-                          <TableRow key={variant.id}>
-                            <TableCell className="font-medium">{variant.name}</TableCell>
-                            <TableCell>{formatCurrency(variant.sellingPrice)}</TableCell>
-                            <TableCell>{variant.currentStock}</TableCell>
-                            <TableCell>
-                              <Badge variant={variant.isActive ? 'success' : 'secondary'}>
-                                {variant.isActive ? 'Active' : 'Inactive'}
-                              </Badge>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
-                </div>
-              ) : null}
             </div>
 
             <DialogFooter className="gap-2 sm:gap-0">
-              <Button variant="outline" asChild>
-                <Link to={PRODUCT_ROUTES.VARIANTS(product.id)} onClick={() => onOpenChange(false)}>
-                  <Layers3 className="h-4 w-4" />
-                  Manage Variants
-                </Link>
-              </Button>
               <Button variant="outline" asChild>
                 <Link to={PRODUCT_ROUTES.EDIT(product.id)} onClick={() => onOpenChange(false)}>
                   <Pencil className="h-4 w-4" />

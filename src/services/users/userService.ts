@@ -110,6 +110,16 @@ function isEmailTaken(email: string, excludeUserId?: string): boolean {
   )
 }
 
+function findUserByEmail(email: string): ManagedUser | undefined {
+  const normalized = email.trim().toLowerCase()
+  return loadUsers().find((entry) => entry.email.toLowerCase() === normalized)
+}
+
+function verifyUserPassword(userId: string, password: string): boolean {
+  const passwords = loadPasswords()
+  return passwords[userId] === password
+}
+
 function enrichListItem(user: ManagedUser): UserListItem {
   return {
     id: user.id,
@@ -241,6 +251,21 @@ export const userService = {
     const user = loadUsers().find((entry) => entry.id === id)
     if (!user) {
       throw new Error('User not found.')
+    }
+
+    return enrichDetail(user)
+  },
+
+  async authenticate(email: string, password: string): Promise<UserDetail> {
+    await delay()
+
+    const user = findUserByEmail(email)
+    if (!user || !verifyUserPassword(user.id, password)) {
+      throw new Error('Invalid email or password.')
+    }
+
+    if (user.status !== 'active') {
+      throw new Error('This account is not active. Contact an administrator.')
     }
 
     return enrichDetail(user)
