@@ -23,7 +23,6 @@ export function ProductInfoCard({ product }: ProductInfoCardProps) {
     { label: 'Category', value: product.categoryName },
     { label: 'Brand', value: product.brand },
     { label: 'Model', value: product.model || '—' },
-    { label: 'SKU', value: product.sku || '—' },
     { label: 'Warranty', value: `${product.warrantyMonths} months` },
   ]
 
@@ -67,13 +66,7 @@ export function ProductInfoCard({ product }: ProductInfoCardProps) {
         <div>
           <p className="text-xs uppercase tracking-wide text-muted-foreground">Pricing</p>
           {pricing ? (
-            <div className="mt-3 grid gap-3 sm:grid-cols-2">
-              <div className="rounded-lg border bg-muted/30 p-4">
-                <p className="text-xs text-muted-foreground">Cost Price</p>
-                <p className="mt-1 text-lg font-semibold">
-                  {formatPriceRange(pricing.costPrice.min, pricing.costPrice.max)}
-                </p>
-              </div>
+            <div className="mt-3">
               <div className="rounded-lg border bg-muted/30 p-4">
                 <p className="text-xs text-muted-foreground">Selling Price</p>
                 <p className="mt-1 text-lg font-semibold text-primary">

@@ -34,6 +34,8 @@ export function InventoryDashboardPage() {
         description="Monitor stock levels, value, and branch inventory activity."
       />
 
+      <InventoryQuickActions />
+
       {summaryLoading || !summary ? (
         <div className="flex min-h-32 items-center justify-center">
           <LoadingSpinner size="lg" />
@@ -42,11 +44,9 @@ export function InventoryDashboardPage() {
         <InventoryStatsCards summary={summary} />
       )}
 
-      <InventoryQuickActions />
-
       <ProductLocator compact />
 
-      <div className="space-y-4">
+      <section className="space-y-4">
         <div>
           <h2 className="text-lg font-semibold">Current Inventory</h2>
           <p className="text-sm text-muted-foreground">Live stock levels across all branches.</p>
@@ -84,7 +84,7 @@ export function InventoryDashboardPage() {
             </div>
           </div>
         ) : null}
-      </div>
+      </section>
     </div>
   )
 }

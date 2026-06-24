@@ -16,10 +16,8 @@ export type ProductFormInput = z.input<typeof productFormSchema>
 export type ProductFormOutput = z.output<typeof productFormSchema>
 
 export const productPricingFieldsSchema = z.object({
-  costPrice: z.coerce.number().min(0, 'Cost price must be 0 or more'),
   sellingPrice: z.coerce.number().min(0, 'Selling price must be 0 or more'),
   initialStock: z.coerce.number().int().min(0, 'Initial stock must be 0 or more'),
-  minimumStock: z.coerce.number().int().min(0, 'Minimum stock must be 0 or more'),
 })
 
 export const productWithPricingFormSchema = productFormSchema.merge(productPricingFieldsSchema)

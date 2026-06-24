@@ -54,9 +54,7 @@ export interface CartItem {
   productId: string
   productVariantId: string
   productName: string
-  variantName: string
   brand: string
-  sku: string
   imageUrl: string
   quantity: number
   unitPrice: number
@@ -67,9 +65,7 @@ export interface PosProductResult {
   productId: string
   productVariantId: string
   productName: string
-  variantName: string
   brand: string
-  sku: string
   imageUrl: string
   sellingPrice: number
   availableStock: number

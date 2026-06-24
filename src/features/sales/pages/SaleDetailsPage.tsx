@@ -127,7 +127,6 @@ export function SaleDetailsPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Product</TableHead>
-                  <TableHead>Variant</TableHead>
                   <TableHead className="text-center">Quantity</TableHead>
                   <TableHead className="text-right">Price</TableHead>
                   <TableHead className="text-right">Total</TableHead>
@@ -137,7 +136,6 @@ export function SaleDetailsPage() {
                 {sale.items.map((item) => (
                   <TableRow key={item.id}>
                     <TableCell className="font-medium">{item.productName}</TableCell>
-                    <TableCell>{item.variantName}</TableCell>
                     <TableCell className="text-center">{item.quantity}</TableCell>
                     <TableCell className="text-right">{formatCurrency(item.unitPrice)}</TableCell>
                     <TableCell className="text-right font-medium">

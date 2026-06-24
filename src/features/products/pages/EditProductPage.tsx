@@ -22,28 +22,28 @@ export function EditProductPage() {
   const handleSubmit = async (values: ProductWithPricingFormOutput) => {
     if (!product) return
 
-    const { costPrice, sellingPrice, initialStock, minimumStock, ...productInput } = values
+    const { sellingPrice, initialStock, ...productInput } = values
 
-    await updateProduct.mutateAsync({ id, input: productInput })
+    await updateProduct.mutateAsync({ id, input: { ...productInput, sku: product.sku } })
 
     const primaryVariant = getPrimaryVariant(product.variants)
     if (primaryVariant) {
       await variantService.updateVariant(id, primaryVariant.id, {
         name: 'Standard',
         variantType: 'Default',
-        costPrice,
+        costPrice: primaryVariant.costPrice,
         sellingPrice,
         currentStock: initialStock,
-        minimumStock,
+        minimumStock: primaryVariant.minimumStock,
       })
     } else {
       await variantService.createVariant(id, {
         name: 'Standard',
         variantType: 'Default',
-        costPrice,
+        costPrice: 0,
         sellingPrice,
         currentStock: initialStock,
-        minimumStock,
+        minimumStock: 0,
         isActive: true,
       })
     }

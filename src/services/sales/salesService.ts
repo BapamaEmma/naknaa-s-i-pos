@@ -148,8 +148,7 @@ function buildPosProductResults(search: string, branchId: string): PosProductRes
     const matchesSearch =
       !query ||
       product.name.toLowerCase().includes(query) ||
-      product.brand.toLowerCase().includes(query) ||
-      product.sku.toLowerCase().includes(query)
+      product.brand.toLowerCase().includes(query)
 
     if (!matchesSearch) continue
 
@@ -157,9 +156,7 @@ function buildPosProductResults(search: string, branchId: string): PosProductRes
       productId: product.id,
       productVariantId: variant.id,
       productName: product.name,
-      variantName: variant.name,
       brand: product.brand,
-      sku: product.sku,
       imageUrl: product.imageUrl,
       sellingPrice: variant.sellingPrice,
       availableStock: getAvailableStock(branchId, variant.id),

@@ -72,7 +72,7 @@ export function ProductGrid({ products, cartItems = [], isLoading, onAddToCart }
 
                   <div className="flex flex-1 flex-col gap-1">
                     <p className="line-clamp-2 text-sm font-semibold leading-tight">{product.productName}</p>
-                    <p className="line-clamp-1 text-xs text-muted-foreground">{product.variantName}</p>
+                    <p className="line-clamp-1 text-xs text-muted-foreground">{product.brand}</p>
                     <p className="mt-auto pt-2 text-sm font-bold">{formatCurrency(product.sellingPrice)}</p>
                     <Badge
                       variant={outOfStock ? 'destructive' : atMax ? 'warning' : 'secondary'}

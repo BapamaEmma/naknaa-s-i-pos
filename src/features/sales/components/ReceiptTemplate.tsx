@@ -126,7 +126,6 @@ export const ReceiptTemplate = forwardRef<HTMLDivElement, ReceiptTemplateProps>(
                 <span className="text-base font-bold">{item.quantity}</span>
                 <div className="min-w-0">
                   <p className="break-words text-base font-bold leading-snug">{item.productName}</p>
-                  <p className="break-words text-sm text-black/75">{item.variantName}</p>
                   <p className="text-sm text-black/65">{formatCurrency(item.unitPrice)} each</p>
                 </div>
                 <span className="text-right text-base font-bold leading-snug">

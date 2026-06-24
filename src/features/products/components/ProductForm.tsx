@@ -42,10 +42,8 @@ const defaultValues: ProductFormInput = {
 }
 
 const defaultPricingValues = {
-  costPrice: 0,
   sellingPrice: 0,
   initialStock: 0,
-  minimumStock: 0,
 }
 
 export function ProductForm({
@@ -92,10 +90,8 @@ export function ProductForm({
         isActive: product.isActive ? 'true' : 'false',
         ...(requirePricing
           ? {
-              costPrice: primaryVariant?.costPrice ?? 0,
               sellingPrice: primaryVariant?.sellingPrice ?? 0,
               initialStock: primaryVariant?.currentStock ?? 0,
-              minimumStock: primaryVariant?.minimumStock ?? 0,
             }
           : {}),
       })
@@ -133,10 +129,8 @@ export function ProductForm({
         }
 
         const {
-          costPrice: _costPrice,
           sellingPrice: _sellingPrice,
           initialStock: _initialStock,
-          minimumStock: _minimumStock,
           ...productInput
         } = values
 
@@ -184,11 +178,6 @@ export function ProductForm({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="sku">SKU</Label>
-              <Input id="sku" {...register('sku')} />
-            </div>
-
-            <div className="space-y-2">
               <Label htmlFor="warrantyMonths">Warranty Months</Label>
               <Input id="warrantyMonths" type="number" min="0" {...register('warrantyMonths')} />
               {errors.warrantyMonths ? (
@@ -216,20 +205,10 @@ export function ProductForm({
         <Card>
           <CardHeader>
             <CardTitle>Pricing & Stock</CardTitle>
-            <CardDescription>
-              Set the cost price, selling price, and initial stock for this product.
-            </CardDescription>
+            <CardDescription>Set the selling price and stock for this product.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="costPrice">Cost Price *</Label>
-                <Input id="costPrice" type="number" min="0" step="0.01" {...register('costPrice')} />
-                {errors.costPrice ? (
-                  <p className="text-sm text-destructive">{errors.costPrice.message}</p>
-                ) : null}
-              </div>
-
               <div className="space-y-2">
                 <Label htmlFor="sellingPrice">Selling Price *</Label>
                 <Input
@@ -249,14 +228,6 @@ export function ProductForm({
                 <Input id="initialStock" type="number" min="0" {...register('initialStock')} />
                 {errors.initialStock ? (
                   <p className="text-sm text-destructive">{errors.initialStock.message}</p>
-                ) : null}
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="minimumStock">Minimum Stock</Label>
-                <Input id="minimumStock" type="number" min="0" {...register('minimumStock')} />
-                {errors.minimumStock ? (
-                  <p className="text-sm text-destructive">{errors.minimumStock.message}</p>
                 ) : null}
               </div>
             </div>
