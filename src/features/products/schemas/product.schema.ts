@@ -15,6 +15,16 @@ export const productFormSchema = z.object({
 export type ProductFormInput = z.input<typeof productFormSchema>
 export type ProductFormOutput = z.output<typeof productFormSchema>
 
+export const productPricingFieldsSchema = z.object({
+  sellingPrice: z.coerce.number().min(0, 'Selling price must be 0 or more'),
+  initialStock: z.coerce.number().int().min(0, 'Initial stock must be 0 or more'),
+})
+
+export const productWithPricingFormSchema = productFormSchema.merge(productPricingFieldsSchema)
+
+export type ProductWithPricingFormInput = z.input<typeof productWithPricingFormSchema>
+export type ProductWithPricingFormOutput = z.output<typeof productWithPricingFormSchema>
+
 export const variantFormSchema = z.object({
   name: z.string().min(1, 'Variant name is required'),
   variantType: z.string().min(1, 'Variant type is required'),

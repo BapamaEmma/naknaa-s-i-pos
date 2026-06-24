@@ -21,9 +21,9 @@ export function WelcomeSection() {
   const name = user?.firstName ?? 'Admin'
 
   return (
-    <div className="rounded-xl border bg-gradient-to-r from-primary/10 via-primary/5 to-transparent p-6 shadow-sm">
+    <div className="rounded-xl border bg-gradient-to-r from-primary/10 via-primary/5 to-transparent p-4 shadow-sm sm:p-6">
       <p className="text-sm font-medium text-primary">{getGreeting()}, {name}</p>
-      <h1 className="mt-1 text-2xl font-bold tracking-tight md:text-3xl">
+      <h1 className="mt-1 text-balance text-xl font-bold tracking-tight sm:text-2xl md:text-3xl">
         Welcome back to NakNaa Electronics.
       </h1>
       <p className="mt-2 text-sm text-muted-foreground">Today is {getFormattedDate()}.</p>

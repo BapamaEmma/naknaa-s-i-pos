@@ -4,12 +4,12 @@ import { SEED_PRODUCTS, SEED_VARIANTS } from '@/services/products/mock-data'
 
 export const INVENTORY_STORAGE_KEY = 'naknaa_inventory_v1'
 export const INVENTORY_TRANSACTIONS_KEY = 'naknaa_inventory_transactions_v1'
-export const BRANCHES_STORAGE_KEY = 'naknaa_branches_v1'
+export const BRANCHES_STORAGE_KEY = 'naknaa_branches_v2'
 
 export const SEED_BRANCHES: Branch[] = [
   { id: 'branch-main', name: 'NakNaa Main Store', code: 'MAIN', isActive: true },
-  { id: 'branch-accra', name: 'Accra Branch', code: 'ACC', isActive: true },
-  { id: 'branch-kumasi', name: 'Kumasi Branch', code: 'KUM', isActive: true },
+  { id: 'branch-accra', name: 'NakNaa Anest', code: 'ACC', isActive: true },
+  { id: 'branch-kumasi', name: 'Back Store', code: 'KUM', isActive: true },
 ]
 
 function buildSeedInventory(): InventoryRecord[] {
@@ -122,7 +122,7 @@ export const SEED_TRANSACTIONS: InventoryTransaction[] = [
     productVariantId: 'var-psr-61',
     productName: 'Yamaha PSR',
     variantName: '61 Keys',
-    branchName: 'Accra Branch',
+    branchName: 'NakNaa Anest',
     transactionType: 'purchase',
     quantity: 3,
     previousQuantity: 0,

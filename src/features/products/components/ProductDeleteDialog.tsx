@@ -40,8 +40,8 @@ export function ProductDeleteDialog({
         <DialogHeader>
           <DialogTitle>Delete product</DialogTitle>
           <DialogDescription>
-            Are you sure you want to delete <strong>{product?.name}</strong>? All associated variants
-            will also be removed.
+            Are you sure you want to delete <strong>{product?.name}</strong>? This action cannot be
+            undone.
           </DialogDescription>
         </DialogHeader>
 

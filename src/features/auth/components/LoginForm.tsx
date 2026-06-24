@@ -39,8 +39,10 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
     try {
       await login(values)
       onSuccess?.()
-    } catch {
-      setError('Unable to sign in. Please check your credentials and try again.')
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : 'Unable to sign in. Please check your credentials and try again.'
+      setError(message)
     }
   })
 
@@ -85,10 +87,6 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
       >
         {isLoading ? <LoadingSpinner size="sm" className="border-primary-foreground border-t-transparent" /> : 'Sign in'}
       </button>
-
-      <p className="text-center text-xs text-muted-foreground">
-        Demo: {MOCK_CREDENTIALS.admin.email} / {MOCK_CREDENTIALS.admin.password}
-      </p>
     </form>
   )
 }

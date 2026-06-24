@@ -1,0 +1,28 @@
+#!/bin/sh
+# Blocks accidental direct pushes to main.
+# Override once if you truly need to: ALLOW_MAIN_PUSH=1 git push origin main
+
+protected_branch="main"
+
+while read -r local_ref local_sha remote_ref remote_sha; do
+  branch="${remote_ref#refs/heads/}"
+
+  if [ "$branch" = "$protected_branch" ] && [ "${ALLOW_MAIN_PUSH:-}" != "1" ]; then
+    echo ""
+    echo "Blocked: direct push to '$protected_branch' is not allowed."
+    echo ""
+    echo "Use this workflow instead:"
+    echo "  1. git checkout develop"
+    echo "  2. git checkout -b feature/your-change"
+    echo "  3. commit your work"
+    echo "  4. git push -u origin feature/your-change"
+    echo "  5. Open a PR into develop, verify, merge"
+    echo "  6. When ready for production, open a PR from develop -> main"
+    echo ""
+    echo "Emergency override: ALLOW_MAIN_PUSH=1 git push origin main"
+    echo ""
+    exit 1
+  fi
+done
+
+exit 0

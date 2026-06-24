@@ -16,7 +16,7 @@ export function LoginPage() {
 
   return (
     <div className="rounded-xl border bg-card p-6 shadow-sm">
-      <div className="mb-6 space-y-1">
+      <div className="mb-6 space-y-1 text-center">
         <h2 className="text-xl font-semibold tracking-tight">Welcome back</h2>
         <p className="text-sm text-muted-foreground">Sign in to your NakNaa POS account</p>
       </div>

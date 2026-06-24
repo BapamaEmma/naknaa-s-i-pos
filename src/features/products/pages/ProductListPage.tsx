@@ -36,7 +36,7 @@ export function ProductListPage() {
     <div className="space-y-6 p-4 md:p-6">
       <PageHeader
         title="Products"
-        description="Manage your electronics catalog, pricing, and product variants."
+        description="Manage your electronics catalog and pricing."
         action={
           <Button asChild>
             <Link to={PRODUCT_ROUTES.CREATE}>

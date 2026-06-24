@@ -15,8 +15,12 @@ export const MOCK_CREDENTIALS = {
     email: 'admin@naknaa.com',
     password: 'password',
   },
-  storekeeper: {
-    email: 'storekeeper@naknaa.com',
+  cashierAccra: {
+    email: 'cashier.accra@naknaa.com',
+    password: 'password',
+  },
+  cashierKumasi: {
+    email: 'cashier.kumasi@naknaa.com',
     password: 'password',
   },
 } as const

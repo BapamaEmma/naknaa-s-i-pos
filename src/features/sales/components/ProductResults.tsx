@@ -51,9 +51,7 @@ export function ProductResults({ products, isLoading, onAddToCart }: ProductResu
                   </div>
                   <div className="space-y-1">
                     <p className="font-medium">{product.productName}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {product.variantName} · {product.brand} · {product.sku}
-                    </p>
+                    <p className="text-sm text-muted-foreground">{product.brand}</p>
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="text-sm font-semibold">{formatCurrency(product.sellingPrice)}</span>
                       <Badge variant={outOfStock ? 'destructive' : 'secondary'}>

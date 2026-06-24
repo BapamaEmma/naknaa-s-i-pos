@@ -1,6 +1,14 @@
+import { Link } from 'react-router-dom'
+import { AlertCircle, Plus } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
+import { PRODUCT_ROUTES } from '@/features/products/constants'
+import {
+  formatPriceRange,
+  getProductPricingSummary,
+} from '@/features/products/utils/pricing'
 import type { ProductDetail } from '@/features/products/types'
 
 interface ProductInfoCardProps {
@@ -8,12 +16,13 @@ interface ProductInfoCardProps {
 }
 
 export function ProductInfoCard({ product }: ProductInfoCardProps) {
+  const pricing = getProductPricingSummary(product.variants)
+
   const fields = [
     { label: 'Product Name', value: product.name },
     { label: 'Category', value: product.categoryName },
     { label: 'Brand', value: product.brand },
     { label: 'Model', value: product.model || '—' },
-    { label: 'SKU', value: product.sku || '—' },
     { label: 'Warranty', value: `${product.warrantyMonths} months` },
   ]
 
@@ -50,6 +59,40 @@ export function ProductInfoCard({ product }: ProductInfoCardProps) {
               </div>
             ))}
           </div>
+        </div>
+
+        <Separator />
+
+        <div>
+          <p className="text-xs uppercase tracking-wide text-muted-foreground">Pricing</p>
+          {pricing ? (
+            <div className="mt-3">
+              <div className="rounded-lg border bg-muted/30 p-4">
+                <p className="text-xs text-muted-foreground">Selling Price</p>
+                <p className="mt-1 text-lg font-semibold text-primary">
+                  {formatPriceRange(pricing.sellingPrice.min, pricing.sellingPrice.max)}
+                </p>
+              </div>
+            </div>
+          ) : (
+            <div className="mt-3 flex flex-col gap-3 rounded-lg border border-dashed p-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-start gap-3">
+                <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-muted-foreground" />
+                <div>
+                  <p className="text-sm font-medium">No price set</p>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Edit this product to set cost and selling prices.
+                  </p>
+                </div>
+              </div>
+              <Button asChild size="sm" variant="outline" className="shrink-0">
+                <Link to={PRODUCT_ROUTES.EDIT(product.id)}>
+                  <Plus className="h-4 w-4" />
+                  Add pricing
+                </Link>
+              </Button>
+            </div>
+          )}
         </div>
 
         <Separator />

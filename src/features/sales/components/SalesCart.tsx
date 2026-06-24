@@ -41,7 +41,6 @@ export function SalesCart({ items, onIncrease, onDecrease, onRemove }: SalesCart
               <TableHeader>
                 <TableRow>
                   <TableHead>Product</TableHead>
-                  <TableHead>Variant</TableHead>
                   <TableHead className="text-center">Qty</TableHead>
                   <TableHead className="text-right">Unit Price</TableHead>
                   <TableHead className="text-right">Total</TableHead>
@@ -52,12 +51,9 @@ export function SalesCart({ items, onIncrease, onDecrease, onRemove }: SalesCart
                 {items.map((item) => (
                   <TableRow key={item.productVariantId}>
                     <TableCell>
-                      <div>
-                        <p className="font-medium">{item.productName}</p>
-                        <p className="text-xs text-muted-foreground">{item.sku}</p>
-                      </div>
+                      <p className="font-medium">{item.productName}</p>
+                      <p className="text-xs text-muted-foreground">{item.brand}</p>
                     </TableCell>
-                    <TableCell>{item.variantName}</TableCell>
                     <TableCell>
                       <div className="flex items-center justify-center gap-1">
                         <Button

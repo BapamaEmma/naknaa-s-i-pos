@@ -26,7 +26,7 @@ export function SalesFilters({ filters, customers, cashiers, onChange }: SalesFi
             id="sales-search"
             value={filters.search ?? ''}
             onChange={(event) => update({ search: event.target.value })}
-            placeholder="Receipt number, customer, or cashier"
+            placeholder="Receipt number, customer, or seller"
           />
         </div>
 
@@ -67,13 +67,13 @@ export function SalesFilters({ filters, customers, cashiers, onChange }: SalesFi
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="cashier-filter">Cashier</Label>
+          <Label htmlFor="cashier-filter">Seller</Label>
           <Select
             id="cashier-filter"
             value={filters.cashierId ?? ''}
             onChange={(event) => update({ cashierId: event.target.value || undefined })}
           >
-            <option value="">All cashiers</option>
+            <option value="">All sellers</option>
             {cashiers.map((cashier) => (
               <option key={cashier.id} value={cashier.id}>
                 {cashier.name}

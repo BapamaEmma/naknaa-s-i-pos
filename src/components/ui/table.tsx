@@ -24,12 +24,15 @@ export function TableRow({ className, ...props }: React.ComponentProps<'tr'>) {
 export function TableHead({ className, ...props }: React.ComponentProps<'th'>) {
   return (
     <th
-      className={cn('h-12 px-4 text-left align-middle font-medium text-muted-foreground', className)}
+      className={cn(
+        'h-11 px-2 text-left align-middle text-xs font-medium text-muted-foreground sm:h-12 sm:px-4 sm:text-sm',
+        className,
+      )}
       {...props}
     />
   )
 }
 
 export function TableCell({ className, ...props }: React.ComponentProps<'td'>) {
-  return <td className={cn('p-4 align-middle', className)} {...props} />
+  return <td className={cn('p-2 align-middle sm:p-4', className)} {...props} />
 }

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useForm } from 'react-hook-form'
+import { useForm, type Resolver } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Upload } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -11,17 +11,22 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner'
 import {
   productFormSchema,
+  productWithPricingFormSchema,
   type ProductFormInput,
   type ProductFormOutput,
+  type ProductWithPricingFormInput,
+  type ProductWithPricingFormOutput,
 } from '@/features/products/schemas/product.schema'
-import type { Category, Product } from '@/features/products/types'
+import type { Category, ProductDetail } from '@/features/products/types'
+import { getPrimaryVariant } from '@/features/products/utils/pricing'
 
 interface ProductFormProps {
   categories: Category[]
-  product?: Product | null
+  product?: ProductDetail | null
+  requirePricing?: boolean
   isSubmitting?: boolean
   submitLabel?: string
-  onSubmit: (values: ProductFormOutput) => Promise<void>
+  onSubmit: (values: ProductFormOutput | ProductWithPricingFormOutput) => Promise<void>
 }
 
 const defaultValues: ProductFormInput = {
@@ -36,14 +41,30 @@ const defaultValues: ProductFormInput = {
   isActive: 'true',
 }
 
+const defaultPricingValues = {
+  sellingPrice: 0,
+  initialStock: 0,
+}
+
 export function ProductForm({
   categories,
   product,
+  requirePricing = false,
   isSubmitting = false,
   submitLabel = 'Save product',
   onSubmit,
 }: ProductFormProps) {
   const [imagePreview, setImagePreview] = useState<string>('')
+
+  const form = useForm<ProductWithPricingFormInput, unknown, ProductWithPricingFormOutput>({
+    resolver: zodResolver(
+      requirePricing ? productWithPricingFormSchema : productFormSchema,
+    ) as unknown as Resolver<ProductWithPricingFormInput, unknown, ProductWithPricingFormOutput>,
+    defaultValues: {
+      ...defaultValues,
+      ...defaultPricingValues,
+    },
+  })
 
   const {
     register,
@@ -51,13 +72,12 @@ export function ProductForm({
     reset,
     setValue,
     formState: { errors },
-  } = useForm<ProductFormInput, unknown, ProductFormOutput>({
-    resolver: zodResolver(productFormSchema),
-    defaultValues,
-  })
+  } = form
 
   useEffect(() => {
     if (product) {
+      const primaryVariant = requirePricing ? getPrimaryVariant(product.variants) : null
+
       reset({
         name: product.name,
         categoryId: product.categoryId,
@@ -68,6 +88,12 @@ export function ProductForm({
         warrantyMonths: product.warrantyMonths,
         imageUrl: product.imageUrl,
         isActive: product.isActive ? 'true' : 'false',
+        ...(requirePricing
+          ? {
+              sellingPrice: primaryVariant?.sellingPrice ?? 0,
+              initialStock: primaryVariant?.currentStock ?? 0,
+            }
+          : {}),
       })
       setImagePreview(product.imageUrl)
       return
@@ -75,10 +101,11 @@ export function ProductForm({
 
     reset({
       ...defaultValues,
+      ...defaultPricingValues,
       categoryId: categories[0]?.id ?? '',
     })
     setImagePreview('')
-  }, [product, categories, reset])
+  }, [product, categories, requirePricing, reset])
 
   const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
@@ -94,7 +121,23 @@ export function ProductForm({
   }
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+    <form
+      onSubmit={handleSubmit(async (values) => {
+        if (requirePricing) {
+          await onSubmit(values)
+          return
+        }
+
+        const {
+          sellingPrice: _sellingPrice,
+          initialStock: _initialStock,
+          ...productInput
+        } = values
+
+        await onSubmit(productInput)
+      })}
+      className="space-y-6"
+    >
       <Card>
         <CardHeader>
           <CardTitle>Basic Information</CardTitle>
@@ -135,11 +178,6 @@ export function ProductForm({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="sku">SKU</Label>
-              <Input id="sku" {...register('sku')} />
-            </div>
-
-            <div className="space-y-2">
               <Label htmlFor="warrantyMonths">Warranty Months</Label>
               <Input id="warrantyMonths" type="number" min="0" {...register('warrantyMonths')} />
               {errors.warrantyMonths ? (
@@ -162,6 +200,40 @@ export function ProductForm({
           </div>
         </CardContent>
       </Card>
+
+      {requirePricing ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>Pricing & Stock</CardTitle>
+            <CardDescription>Set the selling price and stock for this product.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="sellingPrice">Selling Price *</Label>
+                <Input
+                  id="sellingPrice"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  {...register('sellingPrice')}
+                />
+                {errors.sellingPrice ? (
+                  <p className="text-sm text-destructive">{errors.sellingPrice.message}</p>
+                ) : null}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="initialStock">{product ? 'Current Stock' : 'Initial Stock'}</Label>
+                <Input id="initialStock" type="number" min="0" {...register('initialStock')} />
+                {errors.initialStock ? (
+                  <p className="text-sm text-destructive">{errors.initialStock.message}</p>
+                ) : null}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      ) : null}
 
       <Card>
         <CardHeader>
