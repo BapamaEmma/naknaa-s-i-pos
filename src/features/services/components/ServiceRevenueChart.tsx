@@ -26,7 +26,7 @@ export function ServiceRevenueChart({ data = [], isLoading }: ServiceRevenueChar
       <CardContent>
         {isLoading ? (
           <div className="flex h-72 items-center justify-center">
-            <LoadingSpinner />
+            <LoadingSpinner layout="chart" />
           </div>
         ) : (
           <div className="h-72 w-full">

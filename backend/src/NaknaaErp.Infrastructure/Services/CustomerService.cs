@@ -145,16 +145,27 @@ public class CustomerService : ICustomerService
 
     public async Task DeleteAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        var customer = await _unitOfWork.Customers.GetByIdAsync(id, cancellationToken)
+        var customer = await _context.Customers.FirstOrDefaultAsync(x => x.Id == id, cancellationToken)
             ?? throw new NotFoundException("Customer", id);
-        customer.IsActive = false;
-        _unitOfWork.Customers.Update(customer);
+
+        var hasPurchaseHistory = await _context.Sales
+            .AnyAsync(x => x.CustomerId == id && x.Status == SaleStatus.Completed, cancellationToken);
+
+        if (hasPurchaseHistory)
+        {
+            throw new ValidationException("Customers with purchase history cannot be deleted.");
+        }
+
+        _unitOfWork.Customers.Remove(customer);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
     }
 
     public async Task<CustomerDashboardSummaryDto> GetDashboardSummaryAsync(CancellationToken cancellationToken = default)
     {
-        var customers = await _context.Customers.AsNoTracking().ToListAsync(cancellationToken);
+        var customers = await _context.Customers
+            .AsNoTracking()
+            .Where(x => x.IsActive)
+            .ToListAsync(cancellationToken);
         var monthStart = new DateTime(DateTime.UtcNow.Year, DateTime.UtcNow.Month, 1, 0, 0, 0, DateTimeKind.Utc);
 
         var topCustomers = new List<CustomerSummaryItemDto>();
@@ -183,8 +194,16 @@ public class CustomerService : ICustomerService
         {
             TotalCustomers = customers.Count,
             NewCustomersThisMonth = customers.Count(x => x.CreatedAt >= monthStart),
-            TopCustomers = topCustomers.OrderByDescending(x => x.TotalPurchases).Take(5).ToList(),
-            HighestSpendingCustomers = highestSpending.OrderByDescending(x => x.TotalAmountSpent).Take(5).ToList()
+            TopCustomers = topCustomers
+                .Where(x => x.TotalPurchases > 0)
+                .OrderByDescending(x => x.TotalPurchases)
+                .Take(5)
+                .ToList(),
+            HighestSpendingCustomers = highestSpending
+                .Where(x => x.TotalAmountSpent > 0)
+                .OrderByDescending(x => x.TotalAmountSpent)
+                .Take(5)
+                .ToList()
         };
     }
 

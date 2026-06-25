@@ -12,9 +12,7 @@ interface PurchaseStatsCardsProps {
 export function PurchaseStatsCards({ summary, isLoading }: PurchaseStatsCardsProps) {
   if (isLoading) {
     return (
-      <div className="flex min-h-32 items-center justify-center">
-        <LoadingSpinner />
-      </div>
+      <LoadingSpinner layout="cards" />
     )
   }
 

@@ -25,6 +25,7 @@ export const variantService = {
         costPrice: input.costPrice,
         sellingPrice: input.sellingPrice,
         reorderLevel: input.minimumStock,
+        initialStock: input.currentStock ?? 0,
         isActive: input.isActive,
       },
     )

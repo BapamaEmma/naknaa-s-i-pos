@@ -5,6 +5,7 @@ import { CreateUserForm } from '@/features/users/components/CreateUserForm'
 import { USER_ROUTES } from '@/features/users/constants'
 import { useCreateUser } from '@/features/users/hooks/use-users'
 import type { CreateUserFormOutput } from '@/features/users/schemas/user.schema'
+import { getErrorMessage } from '@/lib/utils'
 
 export function CreateUserPage() {
   const navigate = useNavigate()
@@ -22,13 +23,13 @@ export function CreateUserPage() {
         email: values.email,
         phoneNumber: values.phoneNumber,
         roleId: values.roleId,
-        branchId: values.branchId,
+        shopName: values.shopName,
         password: values.password,
       })
 
       navigate(USER_ROUTES.DETAIL(user.id))
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : 'Unable to create user.')
+      setErrorMessage(getErrorMessage(error, 'Unable to create user.'))
     }
   }
 

@@ -4,6 +4,7 @@ using NaknaaErp.Application.Exceptions;
 using NaknaaErp.Application.Interfaces;
 using NaknaaErp.Application.Interfaces.Services;
 using NaknaaErp.Domain.Entities;
+using NaknaaErp.Domain.Enums;
 using NaknaaErp.Infrastructure.Persistence;
 
 namespace NaknaaErp.Infrastructure.Services;
@@ -27,7 +28,7 @@ public class ProductVariantService : IProductVariantService
 
         var variants = await _context.ProductVariants
             .AsNoTracking()
-            .Where(x => x.ProductId == productId)
+            .Where(x => x.ProductId == productId && x.IsActive)
             .OrderBy(x => x.VariantName)
             .ToListAsync(cancellationToken);
 
@@ -64,7 +65,37 @@ public class ProductVariantService : IProductVariantService
 
         await _unitOfWork.ProductVariants.AddAsync(variant, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
-        return MapVariant(variant, 0);
+
+        if (request.InitialStock > 0)
+        {
+            var warehouse = await _context.Warehouses
+                .AsNoTracking()
+                .Where(x => x.Status == EntityStatus.Active)
+                .OrderBy(x => x.WarehouseName)
+                .FirstOrDefaultAsync(cancellationToken)
+                ?? throw new ValidationException("No active warehouse found to receive initial stock.");
+
+            await InventoryManager.ApplyStockChangeAsync(
+                _context,
+                variant.Id,
+                warehouse.Id,
+                string.Empty,
+                string.Empty,
+                string.Empty,
+                request.InitialStock,
+                InventoryTransactionType.StockIn,
+                null,
+                "Initial stock on variant creation",
+                null,
+                null,
+                variant.ReorderLevel,
+                cancellationToken);
+
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+        }
+
+        var stock = await GetStockAsync(variant.Id, cancellationToken);
+        return MapVariant(variant, stock);
     }
 
     public async Task<ProductVariantDto> UpdateAsync(

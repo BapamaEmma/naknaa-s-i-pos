@@ -8,7 +8,8 @@ public class CreateUserRequest
     public string Email { get; set; } = string.Empty;
     public string PhoneNumber { get; set; } = string.Empty;
     public Guid RoleId { get; set; }
-    public Guid BranchId { get; set; }
+    public Guid? BranchId { get; set; }
+    public string ShopName { get; set; } = string.Empty;
     public string Password { get; set; } = string.Empty;
 }
 
@@ -20,7 +21,8 @@ public class UpdateUserRequest
     public string Email { get; set; } = string.Empty;
     public string PhoneNumber { get; set; } = string.Empty;
     public Guid RoleId { get; set; }
-    public Guid BranchId { get; set; }
+    public Guid? BranchId { get; set; }
+    public string ShopName { get; set; } = string.Empty;
     public bool IsActive { get; set; } = true;
 }
 

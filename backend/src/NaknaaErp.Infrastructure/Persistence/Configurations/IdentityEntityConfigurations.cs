@@ -68,8 +68,10 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
         builder.Property(x => x.Email).HasMaxLength(200).IsRequired();
         builder.Property(x => x.PhoneNumber).HasMaxLength(30);
         builder.Property(x => x.PasswordHash).HasMaxLength(500).IsRequired();
+        builder.Property(x => x.SupabaseUserId);
         builder.HasIndex(x => x.Username).IsUnique();
         builder.HasIndex(x => x.Email).IsUnique();
+        builder.HasIndex(x => x.SupabaseUserId).IsUnique();
         builder.HasOne(x => x.Role).WithMany(x => x.Users).HasForeignKey(x => x.RoleId);
         builder.HasOne(x => x.Branch).WithMany(x => x.Users).HasForeignKey(x => x.BranchId);
     }

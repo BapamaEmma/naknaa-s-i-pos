@@ -206,9 +206,7 @@ export function PurchaseForm({ purchase, isLoading, isSubmitting, onSubmit }: Pu
 
   if (isLoading) {
     return (
-      <div className="flex min-h-64 items-center justify-center">
-        <LoadingSpinner size="lg" />
-      </div>
+      <LoadingSpinner size="lg" layout="form" />
     )
   }
 

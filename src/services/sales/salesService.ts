@@ -95,8 +95,14 @@ function buildSalesQueryParams(filters: SalesListFilters): Record<string, string
 
 export const salesService = {
   async searchProducts(search: string, _branchId?: string): Promise<PosProductResult[]> {
-    const result = await apiGet<Record<string, unknown>[]>(API_ENDPOINTS.salesProducts, {
-      params: { query: search },
+    const params: Record<string, string> = {}
+    const trimmed = search.trim()
+    if (trimmed) {
+      params.search = trimmed
+    }
+
+    const result = await apiGet<Record<string, unknown>[]>(API_ENDPOINTS.productsPosCatalog, {
+      params,
     })
     return result.map((item) => mapPosProduct(item))
   },

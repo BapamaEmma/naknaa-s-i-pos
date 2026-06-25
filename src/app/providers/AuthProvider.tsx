@@ -1,4 +1,7 @@
 import { createContext, useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { STORAGE_KEYS } from '@/constants/api'
+import { isSupabaseAuthEnabled } from '@/constants/supabase'
+import { supabase } from '@/lib/supabase/client'
 import { authService } from '@/services/auth/authService'
 import type { AuthContextValue, LoginCredentials } from '@/types/auth'
 import type { User } from '@/types/user'
@@ -12,20 +15,56 @@ interface AuthProviderProps {
 
 export function AuthProvider({ children }: AuthProviderProps) {
   const [user, setUser] = useState<User | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
+  const [isInitializing, setIsInitializing] = useState(true)
+  const [isLoggingIn, setIsLoggingIn] = useState(false)
 
   useEffect(() => {
-    const storedUser = authService.getStoredUser()
-    const accessToken = authService.getAccessToken()
+    let isMounted = true
 
-    if (storedUser && accessToken) {
-      setUser(storedUser)
-    } else {
-      authService.clearSession()
-      setUser(null)
+    async function initializeAuth() {
+      const restoredUser = await authService.restoreSession()
+      if (isMounted) {
+        setUser(restoredUser)
+        setIsInitializing(false)
+      }
     }
 
-    setIsLoading(false)
+    void initializeAuth()
+
+    return () => {
+      isMounted = false
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!isSupabaseAuthEnabled) {
+      return
+    }
+
+    const { data: subscription } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'SIGNED_OUT' || !session) {
+        authService.clearSession()
+        setUser(null)
+        return
+      }
+
+      if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'INITIAL_SESSION') {
+        localStorage.setItem(STORAGE_KEYS.ACCESS_TOKEN, session.access_token)
+        localStorage.setItem(STORAGE_KEYS.REFRESH_TOKEN, session.refresh_token)
+
+        try {
+          const profile = await authService.restoreSession()
+          setUser(profile)
+        } catch {
+          authService.clearSession()
+          setUser(null)
+        }
+      }
+    })
+
+    return () => {
+      subscription.subscription.unsubscribe()
+    }
   }, [])
 
   useEffect(() => {
@@ -39,20 +78,25 @@ export function AuthProvider({ children }: AuthProviderProps) {
   }, [])
 
   const login = useCallback(async (credentials: LoginCredentials) => {
-    setIsLoading(true)
+    setIsLoggingIn(true)
 
     try {
       const session = await authService.login(credentials)
       setUser(session.user)
       return session
     } finally {
-      setIsLoading(false)
+      setIsLoggingIn(false)
     }
   }, [])
 
   const logout = useCallback(() => {
     void authService.logout()
     setUser(null)
+  }, [])
+
+  const refreshUser = useCallback(async () => {
+    const profile = await authService.refreshUserProfile()
+    setUser(profile)
   }, [])
 
   const hasRole = useCallback(
@@ -68,12 +112,14 @@ export function AuthProvider({ children }: AuthProviderProps) {
     () => ({
       user,
       isAuthenticated: Boolean(user),
-      isLoading,
+      isLoading: isInitializing,
+      isLoggingIn,
       login,
       logout,
+      refreshUser,
       hasRole,
     }),
-    [user, isLoading, login, logout, hasRole],
+    [user, isInitializing, isLoggingIn, login, logout, refreshUser, hasRole],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

@@ -50,8 +50,8 @@ export function ServiceJobTable({
 }: ServiceJobTableProps) {
   if (isLoading) {
     return (
-      <div className="flex min-h-64 items-center justify-center rounded-xl border bg-card">
-        <LoadingSpinner size="lg" />
+      <div className="rounded-xl border bg-card p-4">
+        <LoadingSpinner size="lg" layout="table" />
       </div>
     )
   }

@@ -16,15 +16,18 @@ public class SaleService : ISaleService
     private readonly ApplicationDbContext _context;
     private readonly IUnitOfWork _unitOfWork;
     private readonly ICurrentUserService _currentUserService;
+    private readonly IProductService _productService;
 
     public SaleService(
         ApplicationDbContext context,
         IUnitOfWork unitOfWork,
-        ICurrentUserService currentUserService)
+        ICurrentUserService currentUserService,
+        IProductService productService)
     {
         _context = context;
         _unitOfWork = unitOfWork;
         _currentUserService = currentUserService;
+        _productService = productService;
     }
 
     public async Task<PagedResult<SaleListItemDto>> GetAllAsync(
@@ -70,6 +73,8 @@ public class SaleService : ISaleService
         {
             salesQuery = salesQuery.Where(x => x.PaymentMethod == query.PaymentMethod);
         }
+
+        salesQuery = salesQuery.Where(x => x.Status == SaleStatus.Completed);
 
         var total = await salesQuery.CountAsync(cancellationToken);
         var items = await salesQuery
@@ -134,77 +139,81 @@ public class SaleService : ISaleService
         var branch = await _unitOfWork.Branches.GetByIdAsync(request.BranchId, cancellationToken)
             ?? throw new NotFoundException("Branch", request.BranchId);
 
-        var saleNumber = await SequenceGenerator.NextAsync(
-            _context, "sale", "SL", "SL-{year}-{sequence}", cancellationToken);
-        var receiptNumber = await SequenceGenerator.NextAsync(
-            _context, "receipt", "NAK", "NAK-{year}-{sequence}", cancellationToken);
-
-        await _unitOfWork.BeginTransactionAsync(cancellationToken);
-        try
+        var strategy = _context.Database.CreateExecutionStrategy();
+        return await strategy.ExecuteAsync(async () =>
         {
-            var saleItems = new List<SaleItem>();
-            decimal subtotal = 0;
+            var saleNumber = await SequenceGenerator.NextAsync(
+                _context, "sale", "SL", "SL-{year}-{sequence}", cancellationToken);
+            var receiptNumber = await SequenceGenerator.NextAsync(
+                _context, "receipt", "NAK", "NAK-{year}-{sequence}", cancellationToken);
 
-            foreach (var itemRequest in request.Items)
+            await _unitOfWork.BeginTransactionAsync(cancellationToken);
+            try
             {
-                var variant = await _context.ProductVariants
-                    .Include(x => x.Product)
-                    .FirstOrDefaultAsync(x => x.Id == itemRequest.ProductVariantId, cancellationToken)
-                    ?? throw new NotFoundException("ProductVariant", itemRequest.ProductVariantId);
+                var saleItems = new List<SaleItem>();
+                decimal subtotal = 0;
 
-                var totalPrice = itemRequest.UnitPrice * itemRequest.Quantity;
-                subtotal += totalPrice;
-
-                saleItems.Add(new SaleItem
+                foreach (var itemRequest in request.Items)
                 {
-                    ProductVariantId = variant.Id,
-                    ProductName = variant.Product.ProductName,
-                    VariantName = variant.VariantName,
-                    Quantity = itemRequest.Quantity,
-                    UnitPrice = itemRequest.UnitPrice,
-                    TotalPrice = totalPrice
-                });
+                    var variant = await _context.ProductVariants
+                        .Include(x => x.Product)
+                        .FirstOrDefaultAsync(x => x.Id == itemRequest.ProductVariantId, cancellationToken)
+                        ?? throw new NotFoundException("ProductVariant", itemRequest.ProductVariantId);
 
-                await InventoryManager.DeductStockAsync(
-                    _context,
-                    variant.Id,
-                    itemRequest.Quantity,
-                    InventoryTransactionType.Sale,
-                    receiptNumber,
-                    request.BranchId,
-                    userId,
-                    cancellationToken);
+                    var totalPrice = itemRequest.UnitPrice * itemRequest.Quantity;
+                    subtotal += totalPrice;
+
+                    saleItems.Add(new SaleItem
+                    {
+                        ProductVariantId = variant.Id,
+                        ProductName = variant.Product.ProductName,
+                        VariantName = variant.VariantName,
+                        Quantity = itemRequest.Quantity,
+                        UnitPrice = itemRequest.UnitPrice,
+                        TotalPrice = totalPrice
+                    });
+
+                    await InventoryManager.DeductStockAsync(
+                        _context,
+                        variant.Id,
+                        itemRequest.Quantity,
+                        InventoryTransactionType.Sale,
+                        receiptNumber,
+                        request.BranchId,
+                        userId,
+                        cancellationToken);
+                }
+
+                var sale = new Sale
+                {
+                    SaleNumber = saleNumber,
+                    ReceiptNumber = receiptNumber,
+                    CustomerId = request.CustomerId,
+                    CustomerName = request.CustomerName,
+                    CustomerPhone = request.CustomerPhone,
+                    UserId = userId,
+                    BranchId = branch.Id,
+                    PaymentMethod = request.PaymentMethod,
+                    Subtotal = subtotal,
+                    Discount = request.Discount,
+                    TotalAmount = subtotal - request.Discount,
+                    Status = SaleStatus.Completed,
+                    SaleDate = DateTime.UtcNow,
+                    Items = saleItems
+                };
+
+                await _unitOfWork.Sales.AddAsync(sale, cancellationToken);
+                await _unitOfWork.SaveChangesAsync(cancellationToken);
+                await _unitOfWork.CommitTransactionAsync(cancellationToken);
+
+                return await GetByIdAsync(sale.Id, cancellationToken);
             }
-
-            var sale = new Sale
+            catch
             {
-                SaleNumber = saleNumber,
-                ReceiptNumber = receiptNumber,
-                CustomerId = request.CustomerId,
-                CustomerName = request.CustomerName,
-                CustomerPhone = request.CustomerPhone,
-                UserId = userId,
-                BranchId = branch.Id,
-                PaymentMethod = request.PaymentMethod,
-                Subtotal = subtotal,
-                Discount = request.Discount,
-                TotalAmount = subtotal - request.Discount,
-                Status = SaleStatus.Completed,
-                SaleDate = DateTime.UtcNow,
-                Items = saleItems
-            };
-
-            await _unitOfWork.Sales.AddAsync(sale, cancellationToken);
-            await _unitOfWork.SaveChangesAsync(cancellationToken);
-            await _unitOfWork.CommitTransactionAsync(cancellationToken);
-
-            return await GetByIdAsync(sale.Id, cancellationToken);
-        }
-        catch
-        {
-            await _unitOfWork.RollbackTransactionAsync(cancellationToken);
-            throw;
-        }
+                await _unitOfWork.RollbackTransactionAsync(cancellationToken);
+                throw;
+            }
+        });
     }
 
     public async Task VoidAsync(Guid id, CancellationToken cancellationToken = default)
@@ -280,78 +289,42 @@ public class SaleService : ISaleService
     public async Task<SalesDashboardSummaryDto> GetDashboardSummaryAsync(CancellationToken cancellationToken = default)
     {
         var today = DateTime.UtcNow.Date;
+        var tomorrow = today.AddDays(1);
         var weekStart = today.AddDays(-(int)today.DayOfWeek);
         var monthStart = new DateTime(today.Year, today.Month, 1, 0, 0, 0, DateTimeKind.Utc);
 
-        var sales = await _context.Sales
+        var completedSales = _context.Sales
             .AsNoTracking()
-            .Where(x => x.Status == SaleStatus.Completed)
-            .ToListAsync(cancellationToken);
+            .Where(x => x.Status == SaleStatus.Completed);
+
+        var todaySales = await completedSales
+            .Where(x => x.SaleDate >= today && x.SaleDate < tomorrow)
+            .SumAsync(x => x.TotalAmount, cancellationToken);
+
+        var todayTransactions = await completedSales
+            .CountAsync(x => x.SaleDate >= today && x.SaleDate < tomorrow, cancellationToken);
+
+        var weeklyRevenue = await completedSales
+            .Where(x => x.SaleDate >= weekStart && x.SaleDate < tomorrow)
+            .SumAsync(x => x.TotalAmount, cancellationToken);
+
+        var monthlyRevenue = await completedSales
+            .Where(x => x.SaleDate >= monthStart && x.SaleDate < tomorrow)
+            .SumAsync(x => x.TotalAmount, cancellationToken);
 
         return new SalesDashboardSummaryDto
         {
-            TodaySales = sales.Where(x => x.SaleDate.Date == today).Sum(x => x.TotalAmount),
-            TodayTransactions = sales.Count(x => x.SaleDate.Date == today),
-            WeeklyRevenue = sales.Where(x => x.SaleDate >= weekStart).Sum(x => x.TotalAmount),
-            MonthlyRevenue = sales.Where(x => x.SaleDate >= monthStart).Sum(x => x.TotalAmount)
+            TodaySales = todaySales,
+            TodayTransactions = todayTransactions,
+            WeeklyRevenue = weeklyRevenue,
+            MonthlyRevenue = monthlyRevenue
         };
     }
 
-    public async Task<IReadOnlyList<PosProductResultDto>> SearchProductsAsync(
+    public Task<IReadOnlyList<PosProductResultDto>> SearchProductsAsync(
         string query,
-        CancellationToken cancellationToken = default)
-    {
-        if (string.IsNullOrWhiteSpace(query))
-        {
-            var allVariants = await _context.ProductVariants
-                .AsNoTracking()
-                .Include(x => x.Product)
-                .Where(x => x.IsActive && x.Product.IsActive)
-                .OrderBy(x => x.Product.ProductName)
-                .Take(50)
-                .ToListAsync(cancellationToken);
-
-            return await MapPosProductsAsync(allVariants, cancellationToken);
-        }
-
-        var search = query.Trim().ToLower();
-        var variants = await _context.ProductVariants
-            .AsNoTracking()
-            .Include(x => x.Product)
-            .Where(x => x.IsActive && x.Product.IsActive &&
-                        (x.Product.ProductName.ToLower().Contains(search) ||
-                         x.Product.ProductCode.ToLower().Contains(search) ||
-                         x.Product.Brand.ToLower().Contains(search)))
-            .Take(20)
-            .ToListAsync(cancellationToken);
-
-        return await MapPosProductsAsync(variants, cancellationToken);
-    }
-
-    private async Task<IReadOnlyList<PosProductResultDto>> MapPosProductsAsync(
-        IReadOnlyList<ProductVariant> variants,
-        CancellationToken cancellationToken)
-    {
-        var results = new List<PosProductResultDto>();
-        foreach (var variant in variants)
-        {
-            var stock = await _context.InventoryRecords
-                .Where(x => x.ProductVariantId == variant.Id)
-                .SumAsync(x => x.Quantity, cancellationToken);
-
-            results.Add(new PosProductResultDto
-            {
-                ProductId = variant.ProductId,
-                ProductVariantId = variant.Id,
-                ProductName = variant.Product.ProductName,
-                Brand = variant.Product.Brand,
-                SellingPrice = variant.SellingPrice,
-                AvailableStock = stock
-            });
-        }
-
-        return results;
-    }
+        CancellationToken cancellationToken = default) =>
+        _productService.GetPosCatalogAsync(query, cancellationToken);
 
     private static SaleDetailDto MapDetail(Sale sale) =>
         new()

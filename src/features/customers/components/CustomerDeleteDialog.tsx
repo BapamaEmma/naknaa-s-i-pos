@@ -36,8 +36,8 @@ export function CustomerDeleteDialog({ open, onOpenChange, customer }: CustomerD
         <DialogHeader>
           <DialogTitle>Delete customer</DialogTitle>
           <DialogDescription>
-            Are you sure you want to delete {customer?.fullName}? Customers with purchase history
-            cannot be deleted.
+            Are you sure you want to delete {customer?.fullName}? This permanently removes customers
+            with no purchase history. Customers who have completed purchases can only be deactivated.
           </DialogDescription>
         </DialogHeader>
 

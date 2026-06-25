@@ -44,3 +44,8 @@ public class AuthUserDto
     public string BranchName { get; set; } = string.Empty;
     public IReadOnlyList<string> Permissions { get; set; } = [];
 }
+
+public class ResolveLoginResponse
+{
+    public string Email { get; set; } = string.Empty;
+}

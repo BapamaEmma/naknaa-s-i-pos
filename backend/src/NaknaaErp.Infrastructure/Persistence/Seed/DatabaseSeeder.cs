@@ -37,9 +37,6 @@ public static class DatabaseSeeder
         var adminUser = CreateAdminUser(branch.Id, AdminRoleId);
         var warehouses = CreateWarehouses();
         var categories = CreateCategories();
-        var products = CreateProducts(categories);
-        var variants = CreateVariants(products);
-        var inventoryRecords = CreateInventory(warehouses, variants);
         var settings = CreateSettings();
 
         context.Permissions.AddRange(permissions);
@@ -49,9 +46,6 @@ public static class DatabaseSeeder
         context.Users.Add(adminUser);
         context.Warehouses.AddRange(warehouses);
         context.Categories.AddRange(categories);
-        context.Products.AddRange(products);
-        context.ProductVariants.AddRange(variants);
-        context.InventoryRecords.AddRange(inventoryRecords);
         context.AppSettings.AddRange(settings);
 
         await context.SaveChangesAsync();
@@ -201,184 +195,6 @@ public static class DatabaseSeeder
         new() { Id = Guid.Parse("55555555-5555-5555-5555-555555555504"), Name = "Mixers", Description = "Audio mixing consoles" }
     ];
 
-    private static List<Product> CreateProducts(IReadOnlyList<Category> categories)
-    {
-        var speakers = categories.First(x => x.Name == "Event Speakers");
-        var guitars = categories.First(x => x.Name == "Guitars");
-        var keyboards = categories.First(x => x.Name == "Piano Keyboards");
-        var mixers = categories.First(x => x.Name == "Mixers");
-
-        return
-        [
-            new()
-            {
-                Id = Guid.Parse("66666666-6666-6666-6666-666666666601"),
-                ProductCode = "PRD-000001",
-                ProductName = "JBL SRX815",
-                CategoryId = speakers.Id,
-                Brand = "JBL",
-                Model = "SRX815",
-                CostPrice = 4500,
-                SellingPrice = 6200,
-                ReorderLevel = 3,
-                IsActive = true
-            },
-            new()
-            {
-                Id = Guid.Parse("66666666-6666-6666-6666-666666666602"),
-                ProductCode = "PRD-000002",
-                ProductName = "Fender Stratocaster",
-                CategoryId = guitars.Id,
-                Brand = "Fender",
-                Model = "Stratocaster",
-                CostPrice = 2800,
-                SellingPrice = 3900,
-                ReorderLevel = 2,
-                IsActive = true
-            },
-            new()
-            {
-                Id = Guid.Parse("66666666-6666-6666-6666-666666666603"),
-                ProductCode = "PRD-000003",
-                ProductName = "Yamaha PSR",
-                CategoryId = keyboards.Id,
-                Brand = "Yamaha",
-                Model = "PSR Series",
-                CostPrice = 1800,
-                SellingPrice = 2500,
-                ReorderLevel = 2,
-                IsActive = true
-            },
-            new()
-            {
-                Id = Guid.Parse("66666666-6666-6666-6666-666666666604"),
-                ProductCode = "PRD-000004",
-                ProductName = "Soundcraft Mixer",
-                CategoryId = mixers.Id,
-                Brand = "Soundcraft",
-                Model = "Signature Series",
-                CostPrice = 3200,
-                SellingPrice = 4500,
-                ReorderLevel = 2,
-                IsActive = true
-            }
-        ];
-    }
-
-    private static List<ProductVariant> CreateVariants(IReadOnlyList<Product> products)
-    {
-        var jbl = products.First(x => x.ProductName == "JBL SRX815");
-        var fender = products.First(x => x.ProductName == "Fender Stratocaster");
-        var yamaha = products.First(x => x.ProductName == "Yamaha PSR");
-        var mixer = products.First(x => x.ProductName == "Soundcraft Mixer");
-
-        return
-        [
-            new()
-            {
-                Id = Guid.Parse("77777777-7777-7777-7777-777777777701"),
-                ProductId = jbl.Id,
-                VariantName = "Color",
-                VariantValue = "Black",
-                CostPrice = 4500,
-                SellingPrice = 6200,
-                ReorderLevel = 3,
-                IsActive = true
-            },
-            new()
-            {
-                Id = Guid.Parse("77777777-7777-7777-7777-777777777702"),
-                ProductId = fender.Id,
-                VariantName = "Finish",
-                VariantValue = "Sunburst",
-                CostPrice = 2800,
-                SellingPrice = 3900,
-                ReorderLevel = 2,
-                IsActive = true
-            },
-            new()
-            {
-                Id = Guid.Parse("77777777-7777-7777-7777-777777777703"),
-                ProductId = yamaha.Id,
-                VariantName = "Model",
-                VariantValue = "PSR-E473",
-                CostPrice = 1800,
-                SellingPrice = 2500,
-                ReorderLevel = 2,
-                IsActive = true
-            },
-            new()
-            {
-                Id = Guid.Parse("77777777-7777-7777-7777-777777777704"),
-                ProductId = mixer.Id,
-                VariantName = "Channels",
-                VariantValue = "16 Channel",
-                CostPrice = 3200,
-                SellingPrice = 4500,
-                ReorderLevel = 2,
-                IsActive = true
-            }
-        ];
-    }
-
-    private static List<InventoryRecord> CreateInventory(
-        IReadOnlyList<Warehouse> warehouses,
-        IReadOnlyList<ProductVariant> variants)
-    {
-        var chairmanDown = warehouses.First(x => x.WarehouseName == "Chairman Down");
-        var chairmanTop = warehouses.First(x => x.WarehouseName == "Chairman Top");
-        var nasoo = warehouses.First(x => x.WarehouseName == "Nasoo");
-        var masalachi = warehouses.First(x => x.WarehouseName == "Masalachi");
-
-        return
-        [
-            new()
-            {
-                Id = Guid.Parse("88888888-8888-8888-8888-888888888801"),
-                ProductVariantId = variants[0].Id,
-                WarehouseId = chairmanDown.Id,
-                Section = "A",
-                Rack = "R1",
-                Bin = "B1",
-                Quantity = 8,
-                MinimumStockLevel = 3
-            },
-            new()
-            {
-                Id = Guid.Parse("88888888-8888-8888-8888-888888888802"),
-                ProductVariantId = variants[1].Id,
-                WarehouseId = chairmanTop.Id,
-                Section = "B",
-                Rack = "R2",
-                Bin = "B1",
-                Quantity = 5,
-                MinimumStockLevel = 2
-            },
-            new()
-            {
-                Id = Guid.Parse("88888888-8888-8888-8888-888888888803"),
-                ProductVariantId = variants[2].Id,
-                WarehouseId = nasoo.Id,
-                Section = "C",
-                Rack = "R1",
-                Bin = "B2",
-                Quantity = 6,
-                MinimumStockLevel = 2
-            },
-            new()
-            {
-                Id = Guid.Parse("88888888-8888-8888-8888-888888888804"),
-                ProductVariantId = variants[3].Id,
-                WarehouseId = masalachi.Id,
-                Section = "D",
-                Rack = "R3",
-                Bin = "B1",
-                Quantity = 4,
-                MinimumStockLevel = 2
-            }
-        ];
-    }
-
     private static List<AppSetting> CreateSettings()
     {
         var jsonOptions = new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
@@ -438,7 +254,7 @@ public static class DatabaseSeeder
             new AppSetting { Category = "Business", Key = "BusinessName", Value = business.BusinessName },
             new AppSetting { Category = "Receipt", Key = "Payload", Value = JsonSerializer.Serialize(receipt, jsonOptions) },
             new AppSetting { Category = "System", Key = "Payload", Value = JsonSerializer.Serialize(system, jsonOptions) },
-            new AppSetting { Category = "Counters", Key = "product", Value = "4" },
+            new AppSetting { Category = "Counters", Key = "product", Value = "0" },
             new AppSetting { Category = "Counters", Key = "warehouse", Value = "4" },
             new AppSetting { Category = "Counters", Key = "customer", Value = "0" },
             new AppSetting { Category = "Counters", Key = "supplier", Value = "0" },

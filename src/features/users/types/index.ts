@@ -73,7 +73,7 @@ export interface CreateUserInput {
   email: string
   phoneNumber: string
   roleId: UserRole
-  branchId: string
+  shopName: string
   password: string
 }
 
@@ -84,7 +84,7 @@ export interface UpdateUserInput {
   email: string
   phoneNumber: string
   roleId: UserRole
-  branchId: string
+  shopName: string
   status: UserStatus
 }
 

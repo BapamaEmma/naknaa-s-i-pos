@@ -9,4 +9,10 @@ public interface IAuthService
     Task<TokenResponse> RefreshTokenAsync(RefreshTokenRequest request, CancellationToken cancellationToken = default);
     Task RevokeRefreshTokenAsync(string refreshToken, CancellationToken cancellationToken = default);
     Task LogoutAsync(CancellationToken cancellationToken = default);
+    Task<string> ResolveLoginEmailAsync(string identifier, CancellationToken cancellationToken = default);
+    Task<AuthUserDto?> LinkSupabaseUserAndGetProfileAsync(
+        string supabaseUserId,
+        string? email,
+        CancellationToken cancellationToken = default);
+    Task<AuthUserDto> GetCurrentUserProfileAsync(CancellationToken cancellationToken = default);
 }

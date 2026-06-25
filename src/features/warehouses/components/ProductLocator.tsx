@@ -59,7 +59,7 @@ export function ProductLocator({
           </p>
         ) : isLoading || isFetching ? (
           <div className="flex min-h-24 items-center justify-center">
-            <LoadingSpinner />
+            <LoadingSpinner layout="inline" />
           </div>
         ) : data?.status === 'available' ? (
           <div className="space-y-4">

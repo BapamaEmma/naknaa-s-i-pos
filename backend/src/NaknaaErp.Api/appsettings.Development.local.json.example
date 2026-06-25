@@ -1,0 +1,15 @@
+{
+  "ConnectionStrings": {
+    "DefaultConnection": "Host=aws-0-eu-west-1.pooler.supabase.com;Port=5432;Database=postgres;Username=postgres.cogdmkjlwgkukthgzeoa;Password=YOUR_DATABASE_PASSWORD;SSL Mode=Require;Trust Server Certificate=true"
+  },
+  "Supabase": {
+    "ProjectUrl": "https://cogdmkjlwgkukthgzeoa.supabase.co",
+    "JwtSecret": "YOUR_SUPABASE_JWT_SECRET",
+    "JwtAudience": "authenticated",
+    "Host": "aws-0-eu-west-1.pooler.supabase.com",
+    "Port": 5432,
+    "Database": "postgres",
+    "Username": "postgres.cogdmkjlwgkukthgzeoa",
+    "Password": "YOUR_DATABASE_PASSWORD"
+  }
+}

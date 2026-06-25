@@ -343,7 +343,7 @@ public class WarehouseService : IWarehouseService
             WarehouseCode = warehouse.WarehouseCode,
             WarehouseName = warehouse.WarehouseName,
             Description = warehouse.Description,
-            TotalProducts = records.Select(x => x.ProductVariantId).Distinct().Count(),
+            TotalProducts = records.Where(x => x.Quantity > 0).Select(x => x.ProductVariantId).Distinct().Count(),
             TotalStockQuantity = records.Sum(x => x.Quantity),
             Status = warehouse.Status
         };
@@ -366,7 +366,7 @@ public class WarehouseService : IWarehouseService
             Address = warehouse.Address,
             Manager = warehouse.Manager,
             Status = warehouse.Status,
-            TotalProducts = records.Select(x => x.ProductVariantId).Distinct().Count(),
+            TotalProducts = records.Where(x => x.Quantity > 0).Select(x => x.ProductVariantId).Distinct().Count(),
             TotalStockQuantity = records.Sum(x => x.Quantity),
             InventoryValue = records.Sum(x => x.Quantity * x.ProductVariant.CostPrice),
             CreatedAt = warehouse.CreatedAt,

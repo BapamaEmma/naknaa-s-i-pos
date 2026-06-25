@@ -12,7 +12,6 @@ import {
   type CreateUserFormOutput,
 } from '@/features/users/schemas/user.schema'
 import { ASSIGNABLE_ROLES } from '@/features/users/constants'
-import { useInventoryBranches } from '@/features/inventory/hooks/use-inventory'
 import { ROLE_LABELS } from '@/constants/roles'
 import { userService } from '@/services/users/userService'
 
@@ -27,7 +26,6 @@ export function CreateUserForm({
   submitLabel = 'Create user',
   onSubmit,
 }: CreateUserFormProps) {
-  const { data: branches = [] } = useInventoryBranches()
   const {
     register,
     handleSubmit,
@@ -42,7 +40,7 @@ export function CreateUserForm({
       email: '',
       phoneNumber: '',
       roleId: 'cashier',
-      branchId: userService.getDefaultBranchId(),
+      shopName: '',
       password: '',
       confirmPassword: '',
     },
@@ -66,7 +64,7 @@ export function CreateUserForm({
         <CardHeader>
           <CardTitle>Basic Information</CardTitle>
           <CardDescription>
-            Create a new system user with role and branch assignment.
+            Create a new system user with role and shop assignment.
           </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4 md:grid-cols-2">
@@ -119,17 +117,15 @@ export function CreateUserForm({
             ) : null}
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="branchId">Branch *</Label>
-            <Select id="branchId" {...register('branchId')}>
-              {branches.map((branch) => (
-                <option key={branch.id} value={branch.id}>
-                  {branch.name}
-                </option>
-              ))}
-            </Select>
-            {errors.branchId ? (
-              <p className="text-sm text-destructive">{errors.branchId.message}</p>
+          <div className="space-y-2 md:col-span-2">
+            <Label htmlFor="shopName">Shop Name *</Label>
+            <Input
+              id="shopName"
+              {...register('shopName')}
+              placeholder="e.g. NakNaa Ring Road Shop"
+            />
+            {errors.shopName ? (
+              <p className="text-sm text-destructive">{errors.shopName.message}</p>
             ) : null}
           </div>
 

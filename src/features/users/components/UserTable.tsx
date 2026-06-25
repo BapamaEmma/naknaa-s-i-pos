@@ -54,8 +54,8 @@ export function UserTable({
 }: UserTableProps) {
   if (isLoading) {
     return (
-      <div className="flex min-h-64 items-center justify-center rounded-xl border bg-card">
-        <LoadingSpinner size="lg" />
+      <div className="rounded-xl border bg-card p-4">
+        <LoadingSpinner size="lg" layout="table" />
       </div>
     )
   }
@@ -81,7 +81,7 @@ export function UserTable({
             <TableHead className="hidden md:table-cell">Username</TableHead>
             <TableHead className="hidden lg:table-cell">Email</TableHead>
             <TableHead className="hidden sm:table-cell">Role</TableHead>
-            <TableHead className="hidden xl:table-cell">Branch</TableHead>
+            <TableHead className="hidden xl:table-cell">Shop</TableHead>
             <TableHead>Status</TableHead>
             <TableHead className="hidden lg:table-cell">Last Login</TableHead>
             <TableHead className="w-16 text-right">Actions</TableHead>

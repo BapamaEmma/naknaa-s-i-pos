@@ -21,7 +21,7 @@ export function CustomerDetailsPage() {
   if (isLoading) {
     return (
       <div className="flex min-h-64 items-center justify-center p-6">
-        <LoadingSpinner size="lg" />
+        <LoadingSpinner size="lg" layout="table" />
       </div>
     )
   }

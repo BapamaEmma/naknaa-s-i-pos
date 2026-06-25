@@ -14,7 +14,6 @@ import {
 } from '@/features/users/schemas/user.schema'
 import { ASSIGNABLE_ROLES, USER_STATUS_LABELS } from '@/features/users/constants'
 import type { UserDetail } from '@/features/users/types'
-import { useInventoryBranches } from '@/features/inventory/hooks/use-inventory'
 import { ROLE_LABELS } from '@/constants/roles'
 import { userService } from '@/services/users/userService'
 
@@ -31,7 +30,6 @@ export function EditUserForm({
   submitLabel = 'Save changes',
   onSubmit,
 }: EditUserFormProps) {
-  const { data: branches = [] } = useInventoryBranches()
   const {
     register,
     handleSubmit,
@@ -47,7 +45,7 @@ export function EditUserForm({
       email: user.email,
       phoneNumber: user.phoneNumber,
       roleId: user.roleId,
-      branchId: user.branchId,
+      shopName: user.branchName,
       status: user.status,
     },
   })
@@ -60,7 +58,7 @@ export function EditUserForm({
       email: user.email,
       phoneNumber: user.phoneNumber,
       roleId: user.roleId,
-      branchId: user.branchId,
+      shopName: user.branchName,
       status: user.status,
     })
   }, [user, reset])
@@ -83,7 +81,7 @@ export function EditUserForm({
         <CardHeader>
           <CardTitle>Basic Information</CardTitle>
           <CardDescription>
-            Update user profile, role, branch, and account status.
+            Update user profile, role, shop name, and account status.
           </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4 md:grid-cols-2">
@@ -136,17 +134,15 @@ export function EditUserForm({
             ) : null}
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="branchId">Branch *</Label>
-            <Select id="branchId" {...register('branchId')}>
-              {branches.map((branch) => (
-                <option key={branch.id} value={branch.id}>
-                  {branch.name}
-                </option>
-              ))}
-            </Select>
-            {errors.branchId ? (
-              <p className="text-sm text-destructive">{errors.branchId.message}</p>
+          <div className="space-y-2 md:col-span-2">
+            <Label htmlFor="shopName">Shop Name *</Label>
+            <Input
+              id="shopName"
+              {...register('shopName')}
+              placeholder="e.g. NakNaa Ring Road Shop"
+            />
+            {errors.shopName ? (
+              <p className="text-sm text-destructive">{errors.shopName.message}</p>
             ) : null}
           </div>
 

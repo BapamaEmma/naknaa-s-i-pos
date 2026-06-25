@@ -46,6 +46,7 @@ public class User : AuditableEntity
     public string Email { get; set; } = string.Empty;
     public string? PhoneNumber { get; set; }
     public string PasswordHash { get; set; } = string.Empty;
+    public Guid? SupabaseUserId { get; set; }
     public Guid RoleId { get; set; }
     public Role Role { get; set; } = null!;
     public Guid BranchId { get; set; }

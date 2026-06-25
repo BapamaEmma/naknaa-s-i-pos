@@ -39,25 +39,46 @@ const cards = [
 export function SalesStatsCards({ summary, isLoading }: SalesStatsCardsProps) {
   if (isLoading) {
     return (
-      <div className="flex min-h-32 items-center justify-center">
-        <LoadingSpinner />
-      </div>
+      <LoadingSpinner layout="cards" />
     )
+  }
+
+  const stats = summary ?? {
+    todaySales: 0,
+    todayTransactions: 0,
+    weeklyRevenue: 0,
+    monthlyRevenue: 0,
   }
 
   return (
     <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-      {cards.map(({ key, title, icon: Icon, format }) => (
-        <Card key={key}>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">{title}</CardTitle>
-            <Icon className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold">{format(summary?.[key] ?? 0)}</p>
-          </CardContent>
-        </Card>
-      ))}
+      {cards.map(({ key, title, icon: Icon, format }) => {
+        const value = stats[key]
+        const isEmpty = value === 0
+
+        return (
+          <Card key={key}>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">{title}</CardTitle>
+              <Icon className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <p className={`text-2xl font-bold ${isEmpty ? 'text-muted-foreground' : ''}`}>
+                {format(value)}
+              </p>
+              {isEmpty ? (
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {key === 'todaySales' || key === 'todayTransactions'
+                    ? 'No sales today'
+                    : key === 'weeklyRevenue'
+                      ? 'No sales this week'
+                      : 'No sales this month'}
+                </p>
+              ) : null}
+            </CardContent>
+          </Card>
+        )
+      })}
     </div>
   )
 }

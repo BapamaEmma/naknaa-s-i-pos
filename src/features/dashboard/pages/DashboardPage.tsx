@@ -19,9 +19,7 @@ export function DashboardPage() {
 
   if (isLoading) {
     return (
-      <div className="flex min-h-[60vh] items-center justify-center p-6">
-        <LoadingSpinner size="lg" />
-      </div>
+      <LoadingSpinner size="lg" layout="page" />
     )
   }
 

@@ -12,7 +12,7 @@ export function PurchaseReportsSection({ reports, isLoading }: PurchaseReportsSe
   if (isLoading) {
     return (
       <div className="flex min-h-48 items-center justify-center">
-        <LoadingSpinner />
+        <LoadingSpinner layout="inline" />
       </div>
     )
   }

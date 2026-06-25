@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using NaknaaErp.Application.Common;
 using NaknaaErp.Application.DTOs.Products;
+using NaknaaErp.Application.DTOs.Sales;
 using NaknaaErp.Application.Interfaces.Services;
 
 namespace NaknaaErp.Api.Controllers;
@@ -33,6 +34,15 @@ public class ProductsController : ControllerBase
     {
         var result = await _productService.GetBrandsAsync(cancellationToken);
         return Ok(ApiResponse<IReadOnlyList<BrandOptionDto>>.Ok(result));
+    }
+
+    [HttpGet("pos-catalog")]
+    public async Task<ActionResult<ApiResponse<IReadOnlyList<PosProductResultDto>>>> GetPosCatalog(
+        [FromQuery] string? search,
+        CancellationToken cancellationToken)
+    {
+        var result = await _productService.GetPosCatalogAsync(search ?? string.Empty, cancellationToken);
+        return Ok(ApiResponse<IReadOnlyList<PosProductResultDto>>.Ok(result));
     }
 
     [HttpGet("{id:guid}")]

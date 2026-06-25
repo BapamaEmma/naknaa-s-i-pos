@@ -61,7 +61,7 @@ export function ProductDeleteDialog({
           <DialogTitle>Delete product</DialogTitle>
           <DialogDescription>
             Are you sure you want to delete <strong>{product?.name}</strong>? It will be removed
-            from the active catalog. You can still find it later under the Inactive status filter.
+            from the active product list immediately.
           </DialogDescription>
         </DialogHeader>
 

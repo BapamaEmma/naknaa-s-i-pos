@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
+import { useAuth } from '@/hooks/useAuth'
 import { Button } from '@/components/ui/button'
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner'
 import { PageHeader } from '@/features/users/components/PageHeader'
@@ -7,10 +8,12 @@ import { EditUserForm } from '@/features/users/components/EditUserForm'
 import { USER_ROUTES } from '@/features/users/constants'
 import { useUpdateUser, useUser } from '@/features/users/hooks/use-users'
 import type { EditUserFormOutput } from '@/features/users/schemas/user.schema'
+import { getErrorMessage } from '@/lib/utils'
 
 export function EditUserPage() {
   const { id = '' } = useParams()
   const navigate = useNavigate()
+  const { user: currentUser, refreshUser } = useAuth()
   const { data: user, isLoading, isError } = useUser(id)
   const updateUser = useUpdateUser()
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
@@ -30,21 +33,25 @@ export function EditUserPage() {
           email: values.email,
           phoneNumber: values.phoneNumber,
           roleId: values.roleId,
-          branchId: values.branchId,
+          shopName: values.shopName,
           status: values.status,
         },
       })
 
+      if (currentUser?.id === id) {
+        await refreshUser()
+      }
+
       navigate(USER_ROUTES.DETAIL(id))
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : 'Unable to update user.')
+      setErrorMessage(getErrorMessage(error, 'Unable to update user.'))
     }
   }
 
   if (isLoading) {
     return (
-      <div className="flex min-h-64 items-center justify-center p-6">
-        <LoadingSpinner size="lg" />
+      <div className="p-6">
+        <LoadingSpinner size="lg" layout="form" />
       </div>
     )
   }

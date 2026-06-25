@@ -7,6 +7,7 @@ import { InventoryQuickActions } from '@/features/inventory/components/Inventory
 import { InventoryStatsCards } from '@/features/inventory/components/InventoryStatsCards'
 import { InventoryTable } from '@/features/inventory/components/InventoryTable'
 import { PageHeader } from '@/features/inventory/components/PageHeader'
+import { EMPTY_INVENTORY_SUMMARY } from '@/features/inventory/constants'
 import {
   useInventory,
   useInventoryBranches,
@@ -22,7 +23,14 @@ export function InventoryDashboardPage() {
     status: 'all',
   })
 
-  const { data: summary, isLoading: summaryLoading } = useInventorySummary()
+  const {
+    data: summary,
+    isLoading: summaryLoading,
+    isError: summaryError,
+    error: summaryErrorObj,
+    refetch: refetchSummary,
+    isFetching: summaryFetching,
+  } = useInventorySummary()
   const { data: categories = [] } = useAllCategories()
   const { data: branches = [] } = useInventoryBranches()
   const { data, isLoading } = useInventory(filters)
@@ -36,12 +44,22 @@ export function InventoryDashboardPage() {
 
       <InventoryQuickActions />
 
-      {summaryLoading || !summary ? (
-        <div className="flex min-h-32 items-center justify-center">
-          <LoadingSpinner size="lg" />
+      {summaryLoading ? (
+        <LoadingSpinner layout="cards" />
+      ) : summaryError ? (
+        <div className="flex min-h-32 flex-col items-center justify-center gap-3 rounded-xl border border-dashed bg-muted/20 px-6 py-10 text-center">
+          <p className="text-sm font-medium text-foreground">Unable to load inventory summary</p>
+          <p className="max-w-md text-sm text-muted-foreground">
+            {summaryErrorObj instanceof Error
+              ? summaryErrorObj.message
+              : 'Make sure the backend API is running on port 5080.'}
+          </p>
+          <Button variant="outline" size="sm" onClick={() => refetchSummary()} disabled={summaryFetching}>
+            {summaryFetching ? 'Retrying...' : 'Try again'}
+          </Button>
         </div>
       ) : (
-        <InventoryStatsCards summary={summary} />
+        <InventoryStatsCards summary={summary ?? EMPTY_INVENTORY_SUMMARY} />
       )}
 
       <ProductLocator compact />

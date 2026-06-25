@@ -1,5 +1,6 @@
 using NaknaaErp.Application.Common;
 using NaknaaErp.Application.DTOs.Products;
+using NaknaaErp.Application.DTOs.Sales;
 
 namespace NaknaaErp.Application.Interfaces.Services;
 
@@ -11,4 +12,7 @@ public interface IProductService
     Task<ProductDetailDto> UpdateAsync(Guid id, UpdateProductRequest request, CancellationToken cancellationToken = default);
     Task DeleteAsync(Guid id, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<BrandOptionDto>> GetBrandsAsync(CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<PosProductResultDto>> GetPosCatalogAsync(
+        string search,
+        CancellationToken cancellationToken = default);
 }

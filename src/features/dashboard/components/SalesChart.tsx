@@ -25,7 +25,7 @@ const periodOptions: { value: SalesChartPeriod; label: string }[] = [
 ]
 
 export function SalesChart({ data }: SalesChartProps) {
-  const [period, setPeriod] = useState<SalesChartPeriod>('monthly')
+  const [period, setPeriod] = useState<SalesChartPeriod>('daily')
   const chartData = data[period]
   const hasData = chartData.some((point) => point.sales > 0 || point.purchases > 0)
 

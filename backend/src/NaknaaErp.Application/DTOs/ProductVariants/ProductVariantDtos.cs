@@ -8,6 +8,7 @@ public class CreateProductVariantRequest
     public decimal CostPrice { get; set; }
     public decimal SellingPrice { get; set; }
     public int ReorderLevel { get; set; }
+    public int InitialStock { get; set; }
     public bool IsActive { get; set; } = true;
 }
 

@@ -417,11 +417,11 @@ namespace NaknaaErp.Infrastructure.Persistence.Migrations
                     b.Property<Guid?>("CreatedBy")
                         .HasColumnType("uuid");
 
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("boolean");
-
                     b.Property<string>("ImageUrl")
                         .HasColumnType("text");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
 
                     b.Property<string>("Model")
                         .HasMaxLength(200)
@@ -1140,6 +1140,9 @@ namespace NaknaaErp.Infrastructure.Persistence.Migrations
                     b.Property<Guid>("RoleId")
                         .HasColumnType("uuid");
 
+                    b.Property<Guid?>("SupabaseUserId")
+                        .HasColumnType("uuid");
+
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -1159,6 +1162,9 @@ namespace NaknaaErp.Infrastructure.Persistence.Migrations
                         .IsUnique();
 
                     b.HasIndex("RoleId");
+
+                    b.HasIndex("SupabaseUserId")
+                        .IsUnique();
 
                     b.HasIndex("Username")
                         .IsUnique();

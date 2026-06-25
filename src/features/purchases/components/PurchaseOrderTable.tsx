@@ -141,7 +141,7 @@ export function PurchaseOrderTable({ orders, isLoading }: PurchaseOrderTableProp
   if (isLoading) {
     return (
       <div className="flex min-h-64 items-center justify-center rounded-xl border">
-        <LoadingSpinner size="lg" />
+        <LoadingSpinner size="lg" layout="table" />
       </div>
     )
   }

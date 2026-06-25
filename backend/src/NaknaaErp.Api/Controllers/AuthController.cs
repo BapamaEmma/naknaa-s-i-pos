@@ -54,4 +54,22 @@ public class AuthController : ControllerBase
         await _authService.LogoutAsync(cancellationToken);
         return Ok(ApiResponse<object>.Ok(new { }, "Logout successful"));
     }
+
+    [AllowAnonymous]
+    [HttpGet("resolve-login")]
+    public async Task<ActionResult<ApiResponse<ResolveLoginResponse>>> ResolveLogin(
+        [FromQuery] string identifier,
+        CancellationToken cancellationToken)
+    {
+        var email = await _authService.ResolveLoginEmailAsync(identifier, cancellationToken);
+        return Ok(ApiResponse<ResolveLoginResponse>.Ok(new ResolveLoginResponse { Email = email }));
+    }
+
+    [Authorize]
+    [HttpGet("me")]
+    public async Task<ActionResult<ApiResponse<AuthUserDto>>> Me(CancellationToken cancellationToken)
+    {
+        var result = await _authService.GetCurrentUserProfileAsync(cancellationToken);
+        return Ok(ApiResponse<AuthUserDto>.Ok(result));
+    }
 }

@@ -20,10 +20,15 @@ public static class DependencyInjection
         IConfiguration configuration)
     {
         services.Configure<JwtSettings>(configuration.GetSection(JwtSettings.SectionName));
+        services.Configure<SupabaseAuthSettings>(configuration.GetSection(SupabaseAuthSettings.SectionName));
 
         services.AddDbContext<ApplicationDbContext>((serviceProvider, options) =>
         {
-            options.UseNpgsql(configuration.GetConnectionString("DefaultConnection"));
+            var connectionString = DatabaseConfiguration.ResolveConnectionString(configuration);
+            options.UseNpgsql(connectionString, npgsql =>
+            {
+                npgsql.EnableRetryOnFailure(maxRetryCount: 3);
+            });
         });
 
         services.AddScoped<IUnitOfWork, UnitOfWork>();
@@ -53,6 +58,8 @@ public static class DependencyInjection
 
         var jwtSettings = configuration.GetSection(JwtSettings.SectionName).Get<JwtSettings>()
             ?? throw new InvalidOperationException("JwtSettings configuration is missing.");
+        var supabaseAuth = configuration.GetSection(SupabaseAuthSettings.SectionName).Get<SupabaseAuthSettings>()
+            ?? new SupabaseAuthSettings();
 
         services.AddAuthentication(options =>
             {
@@ -61,6 +68,24 @@ public static class DependencyInjection
             })
             .AddJwtBearer(options =>
             {
+                if (supabaseAuth.IsAuthConfigured)
+                {
+                    options.Events = SupabaseJwtBearerEvents.Create();
+                    options.TokenValidationParameters = new TokenValidationParameters
+                    {
+                        ValidateIssuer = true,
+                        ValidateAudience = true,
+                        ValidateLifetime = true,
+                        ValidateIssuerSigningKey = true,
+                        ValidIssuer = supabaseAuth.JwtIssuer,
+                        ValidAudience = supabaseAuth.JwtAudience,
+                        IssuerSigningKey = new SymmetricSecurityKey(
+                            Encoding.UTF8.GetBytes(supabaseAuth.JwtSecret)),
+                        ClockSkew = TimeSpan.FromMinutes(1),
+                    };
+                    return;
+                }
+
                 options.TokenValidationParameters = new TokenValidationParameters
                 {
                     ValidateIssuer = true,

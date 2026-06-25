@@ -22,7 +22,7 @@ export function UserProfileCard({ user }: UserProfileCardProps) {
     { label: 'Email', value: user.email || '—' },
     { label: 'Phone Number', value: user.phoneNumber || '—' },
     { label: 'Role', value: user.roleName },
-    { label: 'Branch', value: user.branchName },
+    { label: 'Shop', value: user.branchName },
     {
       label: 'Status',
       value: <Badge variant={statusVariant(user.status)}>{USER_STATUS_LABELS[user.status]}</Badge>,

@@ -166,6 +166,26 @@
     @apply bg-workspace;
   }
 
+  @keyframes shimmer {
+    0% {
+      background-position: 200% 0;
+    }
+    100% {
+      background-position: -200% 0;
+    }
+  }
+
+  .animate-shimmer {
+    background: linear-gradient(
+      110deg,
+      color-mix(in oklch, var(--muted) 92%, var(--foreground) 8%) 8%,
+      color-mix(in oklch, var(--muted) 78%, white 22%) 18%,
+      color-mix(in oklch, var(--muted) 92%, var(--foreground) 8%) 33%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 1.6s ease-in-out infinite;
+  }
+
   @media print {
     .print\\:hidden {
       display: none !important;

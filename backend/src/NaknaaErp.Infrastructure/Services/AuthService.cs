@@ -33,15 +33,27 @@ public class AuthService : IAuthService
 
     public async Task<TokenResponse> LoginAsync(LoginRequest request, CancellationToken cancellationToken = default)
     {
+        var identifier = request.Email.Trim();
+        var password = request.Password.Trim();
+
+        if (string.IsNullOrEmpty(identifier) || string.IsNullOrEmpty(password))
+        {
+            throw new UnauthorizedException("Invalid email or password.");
+        }
+
+        var normalizedIdentifier = identifier.ToLowerInvariant();
+
         var user = await _context.Users
             .Include(x => x.Role)
             .Include(x => x.Branch)
             .FirstOrDefaultAsync(
-                x => x.Email == request.Email || x.Username == request.Email,
+                x =>
+                    x.Email.ToLower() == normalizedIdentifier
+                    || x.Username.ToLower() == normalizedIdentifier,
                 cancellationToken)
             ?? throw new UnauthorizedException("Invalid email or password.");
 
-        if (!user.IsActive || !BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash))
+        if (!user.IsActive || !BCrypt.Net.BCrypt.Verify(password, user.PasswordHash))
         {
             throw new UnauthorizedException("Invalid email or password.");
         }
@@ -152,6 +164,117 @@ public class AuthService : IAuthService
 
         await _context.SaveChangesAsync(cancellationToken);
     }
+
+    public async Task<string> ResolveLoginEmailAsync(string identifier, CancellationToken cancellationToken = default)
+    {
+        var normalized = identifier.Trim();
+        if (string.IsNullOrWhiteSpace(normalized))
+        {
+            throw new ValidationException("Email or username is required.");
+        }
+
+        if (normalized.Contains('@', StringComparison.Ordinal))
+        {
+            return normalized;
+        }
+
+        var user = await _context.Users
+            .AsNoTracking()
+            .FirstOrDefaultAsync(x => x.Username == normalized, cancellationToken)
+            ?? throw new NotFoundException("User", normalized);
+
+        return user.Email;
+    }
+
+    public async Task<AuthUserDto?> LinkSupabaseUserAndGetProfileAsync(
+        string supabaseUserId,
+        string? email,
+        CancellationToken cancellationToken = default)
+    {
+        if (!Guid.TryParse(supabaseUserId, out var supabaseId))
+        {
+            return null;
+        }
+
+        var user = await _context.Users
+            .Include(x => x.Role)
+            .Include(x => x.Branch)
+            .FirstOrDefaultAsync(x => x.SupabaseUserId == supabaseId, cancellationToken);
+
+        if (user is null && !string.IsNullOrWhiteSpace(email))
+        {
+            user = await _context.Users
+                .Include(x => x.Role)
+                .Include(x => x.Branch)
+                .FirstOrDefaultAsync(
+                    x => EF.Functions.ILike(x.Email, email.Trim()),
+                    cancellationToken);
+        }
+
+        if (user is null || !user.IsActive)
+        {
+            return null;
+        }
+
+        var profileChanged = false;
+
+        if (user.SupabaseUserId != supabaseId)
+        {
+            user.SupabaseUserId = supabaseId;
+            profileChanged = true;
+        }
+
+        var normalizedEmail = email?.Trim();
+        if (!string.IsNullOrWhiteSpace(normalizedEmail)
+            && !string.Equals(user.Email, normalizedEmail, StringComparison.OrdinalIgnoreCase))
+        {
+            user.Email = normalizedEmail;
+            profileChanged = true;
+        }
+
+        if (profileChanged)
+        {
+            await _context.SaveChangesAsync(cancellationToken);
+        }
+
+        var permissions = await GetUserPermissionsAsync(user.RoleId, cancellationToken);
+        return MapAuthUser(user, permissions);
+    }
+
+    public async Task<AuthUserDto> GetCurrentUserProfileAsync(CancellationToken cancellationToken = default)
+    {
+        var userId = _currentUserService.UserId
+            ?? throw new UnauthorizedException("User is not authenticated.");
+
+        var user = await _context.Users
+            .AsNoTracking()
+            .Include(x => x.Role)
+            .Include(x => x.Branch)
+            .FirstOrDefaultAsync(x => x.Id == userId, cancellationToken)
+            ?? throw new UnauthorizedException("User profile not found.");
+
+        if (!user.IsActive)
+        {
+            throw new UnauthorizedException("User account is inactive.");
+        }
+
+        var permissions = await GetUserPermissionsAsync(user.RoleId, cancellationToken);
+        return MapAuthUser(user, permissions);
+    }
+
+    private static AuthUserDto MapAuthUser(User user, IReadOnlyList<string> permissions) =>
+        new()
+        {
+            Id = user.Id,
+            FirstName = user.FirstName,
+            LastName = user.LastName,
+            Username = user.Username,
+            Email = user.Email,
+            RoleName = user.Role.Name,
+            BranchId = user.BranchId,
+            BranchName = user.Branch.BranchName,
+            Permissions = permissions,
+        };
 
     private async Task<TokenResponse> IssueTokensAsync(User user, CancellationToken cancellationToken)
     {

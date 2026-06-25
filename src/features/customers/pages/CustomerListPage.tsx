@@ -15,7 +15,7 @@ export function CustomerListPage() {
   const [filters, setFilters] = useState<CustomerListFilters>({
     page: 1,
     limit: 10,
-    status: 'all',
+    status: 'active',
   })
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [selectedCustomer, setSelectedCustomer] = useState<CustomerListItem | null>(null)

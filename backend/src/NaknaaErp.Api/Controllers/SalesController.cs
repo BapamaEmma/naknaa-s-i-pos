@@ -37,10 +37,10 @@ public class SalesController : ControllerBase
 
     [HttpGet("products")]
     public async Task<ActionResult<ApiResponse<IReadOnlyList<PosProductResultDto>>>> SearchProducts(
-        [FromQuery] string query,
+        [FromQuery] string? search,
         CancellationToken cancellationToken)
     {
-        var result = await _saleService.SearchProductsAsync(query, cancellationToken);
+        var result = await _saleService.SearchProductsAsync(search ?? string.Empty, cancellationToken);
         return Ok(ApiResponse<IReadOnlyList<PosProductResultDto>>.Ok(result));
     }
 

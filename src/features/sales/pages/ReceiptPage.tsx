@@ -44,7 +44,7 @@ export function ReceiptPage() {
   if (isLoading) {
     return (
       <div className="flex min-h-96 items-center justify-center p-6">
-        <LoadingSpinner />
+        <LoadingSpinner layout="inline" />
       </div>
     )
   }

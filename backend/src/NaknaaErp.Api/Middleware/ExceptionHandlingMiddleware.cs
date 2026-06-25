@@ -43,7 +43,7 @@ public class ExceptionHandlingMiddleware
             AppException appException => (HttpStatusCode.BadRequest, appException.Message),
             _ when IsDatabaseConnectionFailure(exception) => (
                 HttpStatusCode.ServiceUnavailable,
-                "Unable to connect to the database. Start PostgreSQL (e.g. run `docker compose up -d` in the backend folder) and try again."),
+                "Unable to connect to the database. Check your Supabase connection string in appsettings.Development.local.json and try again."),
             _ => (HttpStatusCode.InternalServerError, "An unexpected error occurred.")
         };
 

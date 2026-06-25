@@ -146,10 +146,6 @@ const productRoutes: RouteObject[] = [
     element: withRoleGuard(ROUTES.PRODUCTS, <EditProductPage />),
   },
   {
-    path: '/products/:id/variants',
-    element: withRoleGuard(ROUTES.PRODUCTS, <Navigate to=".." replace />),
-  },
-  {
     path: '/products/:id',
     element: withRoleGuard(ROUTES.PRODUCTS, <ProductDetailsPage />),
   },

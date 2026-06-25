@@ -18,11 +18,15 @@ export interface AuthResponse {
 export interface AuthState {
   user: import('./user').User | null
   isAuthenticated: boolean
+  /** True while restoring a saved session on app load. */
   isLoading: boolean
+  /** True while a login request is in flight. */
+  isLoggingIn: boolean
 }
 
 export interface AuthContextValue extends AuthState {
   login: (credentials: LoginCredentials) => Promise<AuthResponse>
   logout: () => void
+  refreshUser: () => Promise<void>
   hasRole: (roles: UserRole | UserRole[]) => boolean
 }

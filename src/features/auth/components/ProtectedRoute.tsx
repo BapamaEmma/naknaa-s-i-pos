@@ -8,11 +8,7 @@ import { LoadingSpinner } from '@/components/shared/LoadingSpinner'
 import { useAuth } from '@/features/auth/hooks/use-auth'
 
 function AuthLoadingScreen() {
-  return (
-    <div className="flex h-full items-center justify-center">
-      <LoadingSpinner size="lg" />
-    </div>
-  )
+  return <LoadingSpinner size="lg" layout="page" className="min-h-[100dvh]" />
 }
 
 export function ProtectedRoute() {

@@ -17,7 +17,6 @@ export {
 } from './hooks/use-users'
 
 export { UserTable } from './components/UserTable'
-export { UserForm } from './components/UserForm'
 export { CreateUserForm } from './components/CreateUserForm'
 export { EditUserForm } from './components/EditUserForm'
 export { UserFilters } from './components/UserFilters'

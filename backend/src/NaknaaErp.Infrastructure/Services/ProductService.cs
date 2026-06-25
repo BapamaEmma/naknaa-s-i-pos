@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using NaknaaErp.Application.Common;
 using NaknaaErp.Application.DTOs.ProductVariants;
 using NaknaaErp.Application.DTOs.Products;
+using NaknaaErp.Application.DTOs.Sales;
 using NaknaaErp.Application.Exceptions;
 using NaknaaErp.Application.Interfaces;
 using NaknaaErp.Application.Interfaces.Services;
@@ -184,6 +185,16 @@ public class ProductService : IProductService
         };
 
         await _unitOfWork.Products.AddAsync(product, cancellationToken);
+        await _unitOfWork.ProductVariants.AddAsync(new ProductVariant
+        {
+            ProductId = product.Id,
+            VariantName = "Standard",
+            VariantValue = "Default",
+            CostPrice = product.CostPrice,
+            SellingPrice = product.SellingPrice > 0 ? product.SellingPrice : product.CostPrice,
+            ReorderLevel = product.ReorderLevel,
+            IsActive = product.IsActive,
+        }, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
         return await GetByIdAsync(product.Id, cancellationToken);
     }
@@ -213,11 +224,19 @@ public class ProductService : IProductService
 
     public async Task DeleteAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        var product = await _unitOfWork.Products.GetByIdAsync(id, cancellationToken)
+        var product = await _context.Products
+            .Include(x => x.Variants)
+            .FirstOrDefaultAsync(x => x.Id == id, cancellationToken)
             ?? throw new NotFoundException("Product", id);
+
         product.IsActive = false;
-        _unitOfWork.Products.Update(product);
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+        foreach (var variant in product.Variants.Where(x => x.IsActive))
+        {
+            variant.IsActive = false;
+        }
+
+        await _context.SaveChangesAsync(cancellationToken);
     }
 
     public async Task<IReadOnlyList<BrandOptionDto>> GetBrandsAsync(CancellationToken cancellationToken = default) =>
@@ -229,4 +248,58 @@ public class ProductService : IProductService
             .OrderBy(x => x)
             .Select(x => new BrandOptionDto { Value = x, Label = x })
             .ToListAsync(cancellationToken);
+
+    public async Task<IReadOnlyList<PosProductResultDto>> GetPosCatalogAsync(
+        string search,
+        CancellationToken cancellationToken = default)
+    {
+        var normalizedSearch = search.Trim();
+
+        IQueryable<ProductVariant> variantsQuery = _context.ProductVariants
+            .AsNoTracking()
+            .Include(x => x.Product)
+            .Where(x => x.IsActive && x.Product.IsActive);
+
+        if (!string.IsNullOrWhiteSpace(normalizedSearch))
+        {
+            var term = normalizedSearch.ToLower();
+            variantsQuery = variantsQuery.Where(x =>
+                x.Product.ProductName.ToLower().Contains(term) ||
+                x.Product.ProductCode.ToLower().Contains(term) ||
+                x.Product.Brand.ToLower().Contains(term) ||
+                x.VariantName.ToLower().Contains(term));
+        }
+
+        var variants = await variantsQuery
+            .OrderBy(x => x.Product.ProductName)
+            .ThenBy(x => x.VariantName)
+            .Take(string.IsNullOrWhiteSpace(normalizedSearch) ? 100 : 50)
+            .ToListAsync(cancellationToken);
+
+        if (variants.Count == 0)
+        {
+            return [];
+        }
+
+        var variantIds = variants.Select(x => x.Id).ToList();
+        var stockByVariant = await _context.InventoryRecords
+            .AsNoTracking()
+            .Where(x => variantIds.Contains(x.ProductVariantId))
+            .GroupBy(x => x.ProductVariantId)
+            .Select(group => new { VariantId = group.Key, Quantity = group.Sum(x => x.Quantity) })
+            .ToDictionaryAsync(x => x.VariantId, x => x.Quantity, cancellationToken);
+
+        return variants.Select(variant => new PosProductResultDto
+        {
+            ProductId = variant.ProductId,
+            ProductVariantId = variant.Id,
+            ProductName = variant.Product.ProductName,
+            Brand = variant.Product.Brand,
+            ImageUrl = variant.Product.ImageUrl,
+            SellingPrice = variant.SellingPrice > 0
+                ? variant.SellingPrice
+                : variant.Product.SellingPrice,
+            AvailableStock = stockByVariant.GetValueOrDefault(variant.Id),
+        }).ToList();
+    }
 }

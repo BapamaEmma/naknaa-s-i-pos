@@ -58,8 +58,8 @@ export function EditProductPage() {
 
   if (isLoading) {
     return (
-      <div className="flex min-h-64 items-center justify-center p-6">
-        <LoadingSpinner size="lg" />
+      <div className="p-6">
+        <LoadingSpinner size="lg" layout="form" />
       </div>
     )
   }

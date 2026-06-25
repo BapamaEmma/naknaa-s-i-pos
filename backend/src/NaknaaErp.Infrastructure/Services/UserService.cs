@@ -5,6 +5,7 @@ using NaknaaErp.Application.Exceptions;
 using NaknaaErp.Application.Interfaces;
 using NaknaaErp.Application.Interfaces.Services;
 using NaknaaErp.Domain.Entities;
+using NaknaaErp.Domain.Enums;
 using NaknaaErp.Infrastructure.Persistence;
 
 namespace NaknaaErp.Infrastructure.Services;
@@ -118,7 +119,7 @@ public class UserService : IUserService
             PhoneNumber = request.PhoneNumber,
             PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password),
             RoleId = request.RoleId,
-            BranchId = request.BranchId,
+            BranchId = await ResolveBranchIdAsync(request.BranchId, request.ShopName, cancellationToken),
             IsActive = true
         };
 
@@ -145,7 +146,7 @@ public class UserService : IUserService
         user.Email = request.Email;
         user.PhoneNumber = request.PhoneNumber;
         user.RoleId = request.RoleId;
-        user.BranchId = request.BranchId;
+        user.BranchId = await ResolveBranchIdAsync(request.BranchId, request.ShopName, cancellationToken);
         user.IsActive = request.IsActive;
 
         _unitOfWork.Users.Update(user);
@@ -225,6 +226,68 @@ public class UserService : IUserService
             PageSize = query.PageSize,
             TotalCount = total
         };
+    }
+
+    private async Task<Guid> ResolveBranchIdAsync(
+        Guid? branchId,
+        string? shopName,
+        CancellationToken cancellationToken)
+    {
+        if (!string.IsNullOrWhiteSpace(shopName))
+        {
+            var normalizedShopName = shopName.Trim();
+            var existingBranch = await _context.Branches
+                .FirstOrDefaultAsync(
+                    branch => EF.Functions.ILike(branch.BranchName, normalizedShopName),
+                    cancellationToken);
+
+            if (existingBranch is not null)
+            {
+                return existingBranch.Id;
+            }
+
+            var codeBase = new string(normalizedShopName
+                .Where(char.IsLetterOrDigit)
+                .Take(8)
+                .ToArray())
+                .ToUpperInvariant();
+
+            if (string.IsNullOrWhiteSpace(codeBase))
+            {
+                codeBase = "SHOP";
+            }
+
+            var branchCode = codeBase;
+            var suffix = 1;
+            while (await _context.Branches.AnyAsync(
+                       branch => branch.BranchCode == branchCode,
+                       cancellationToken))
+            {
+                branchCode = $"{codeBase}{suffix++}";
+            }
+
+            var branch = new Branch
+            {
+                BranchCode = branchCode,
+                BranchName = normalizedShopName,
+                Status = EntityStatus.Active,
+            };
+
+            await _unitOfWork.Branches.AddAsync(branch, cancellationToken);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+            return branch.Id;
+        }
+
+        if (branchId.HasValue && branchId.Value != Guid.Empty)
+        {
+            _ = await _context.Branches.AsNoTracking()
+                    .FirstOrDefaultAsync(branch => branch.Id == branchId.Value, cancellationToken)
+                ?? throw new NotFoundException("Branch", branchId.Value);
+
+            return branchId.Value;
+        }
+
+        throw new ValidationException("Shop name is required.");
     }
 
     private static UserDetailDto MapDetail(User user, IReadOnlyList<string> permissions) =>

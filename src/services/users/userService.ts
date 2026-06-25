@@ -48,7 +48,7 @@ function toCreateUserPayload(input: CreateUserInput) {
     email: input.email.trim(),
     phoneNumber: input.phoneNumber.trim(),
     roleId: BACKEND_ROLE_IDS[input.roleId],
-    branchId: input.branchId,
+    shopName: input.shopName.trim(),
     password: input.password,
   }
 }
@@ -61,7 +61,7 @@ function toUpdateUserPayload(input: UpdateUserInput) {
     email: input.email.trim(),
     phoneNumber: input.phoneNumber.trim(),
     roleId: BACKEND_ROLE_IDS[input.roleId],
-    branchId: input.branchId,
+    shopName: input.shopName.trim(),
     isActive: input.status === 'active',
   }
 }
@@ -137,7 +137,7 @@ export const userService = {
       email: current.email,
       phoneNumber: current.phoneNumber,
       roleId: current.roleId,
-      branchId: current.branchId,
+      shopName: current.branchName,
       status: 'inactive',
     })
   },
