@@ -24,7 +24,7 @@ export function PurchaseHistoryTable({ purchases, isLoading }: PurchaseHistoryTa
   if (isLoading) {
     return (
       <div className="flex min-h-48 items-center justify-center rounded-xl border">
-        <LoadingSpinner />
+        <LoadingSpinner layout="inline" />
       </div>
     )
   }

@@ -1,3 +1,4 @@
+import type { PaymentMethod } from '@/features/sales/types'
 import type {
   CreateCustomerInput,
   Customer,
@@ -14,384 +15,267 @@ import type {
   TopPurchasedProduct,
   UpdateCustomerInput,
 } from '@/features/customers/types'
-import {
-  CUSTOMER_CODE_COUNTER_KEY,
-  CUSTOMERS_STORAGE_KEY,
-  SEED_CUSTOMER_CODE_COUNTER,
-  SEED_CUSTOMERS,
-} from '@/services/customers/mock-data'
-import {
-  SALE_ITEMS_STORAGE_KEY,
-  SALES_STORAGE_KEY,
-  SEED_SALE_ITEMS,
-  SEED_SALES,
-} from '@/services/sales/mock-data'
-import type { Sale, SaleItem } from '@/features/sales/types'
-import { delay, readStorage, writeStorage } from '@/services/products/storage'
+import { API_ENDPOINTS } from '@/services/api/endpoints'
+import { apiDelete, apiGet, apiPost, apiPut, toPagedMeta } from '@/services/api/http'
+import { fromPaymentMethod } from '@/services/api/mappers'
+import type { PagedResult } from '@/services/api/types'
 
-function loadCustomers(): Customer[] {
-  return readStorage(CUSTOMERS_STORAGE_KEY, SEED_CUSTOMERS)
-}
-
-function saveCustomers(customers: Customer[]): void {
-  writeStorage(CUSTOMERS_STORAGE_KEY, customers)
-}
-
-function loadCounter(): number {
-  return readStorage(CUSTOMER_CODE_COUNTER_KEY, SEED_CUSTOMER_CODE_COUNTER)
-}
-
-function saveCounter(value: number): void {
-  writeStorage(CUSTOMER_CODE_COUNTER_KEY, value)
-}
-
-function loadSales(): Sale[] {
-  return readStorage(SALES_STORAGE_KEY, SEED_SALES)
-}
-
-function loadSaleItems(): SaleItem[] {
-  return readStorage(SALE_ITEMS_STORAGE_KEY, SEED_SALE_ITEMS)
-}
-
-function generateCustomerCode(): string {
-  const next = loadCounter() + 1
-  saveCounter(next)
-  return `CUS-${String(next).padStart(6, '0')}`
-}
-
-function isNewCustomer(customer: Customer): boolean {
-  const registered = new Date(customer.registrationDate)
-  const thirtyDaysAgo = new Date()
-  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
-  return registered >= thirtyDaysAgo
-}
-
-function getCustomerSales(customerId: string): Sale[] {
-  return loadSales().filter(
-    (sale) => sale.customerId === customerId && sale.status === 'completed',
-  )
-}
-
-function buildPurchaseRecord(sale: Sale, items: SaleItem[]): CustomerPurchase {
-  const saleItems = items.filter((item) => item.saleId === sale.id)
-  const itemSummary = saleItems
-    .slice(0, 2)
-    .map((item) => `${item.productName} (${item.variantName})`)
-    .join(', ')
-
+function mapCustomerListItem(dto: Record<string, unknown>): CustomerListItem {
   return {
-    id: `purchase-${sale.id}`,
-    saleId: sale.id,
-    receiptNumber: sale.receiptNumber,
-    saleDate: sale.saleDate,
-    itemsPurchased: saleItems.reduce((sum, item) => sum + item.quantity, 0),
-    itemSummary: itemSummary || 'No items',
-    paymentMethod: sale.paymentMethod,
-    totalAmount: sale.totalAmount,
+    id: String(dto.id),
+    customerCode: String(dto.customerCode ?? ''),
+    fullName: String(dto.customerName ?? dto.fullName ?? ''),
+    phoneNumber: String(dto.phoneNumber ?? ''),
+    email: String(dto.email ?? ''),
+    address: String(dto.address ?? ''),
+    city: String(dto.city ?? ''),
+    notes: String(dto.notes ?? ''),
+    registrationDate: String(dto.createdAt ?? dto.registrationDate ?? new Date().toISOString()),
+    status: dto.isActive === false || dto.status === 'inactive' ? 'inactive' : 'active',
+    totalPurchases: Number(dto.totalPurchases ?? 0),
+    totalAmountSpent: Number(dto.totalAmountSpent ?? 0),
   }
 }
 
-function buildCustomerStats(customerId: string): CustomerStats {
-  const sales = getCustomerSales(customerId)
-  const totalPurchases = sales.length
-  const totalAmountSpent = sales.reduce((sum, sale) => sum + sale.totalAmount, 0)
-  const lastPurchaseDate =
-    sales.length > 0
-      ? sales.sort((a, b) => new Date(b.saleDate).getTime() - new Date(a.saleDate).getTime())[0]
-          .saleDate
-      : null
-
+function mapCustomerStats(dto: Record<string, unknown>): CustomerStats {
   return {
-    totalPurchases,
-    totalAmountSpent,
-    lastPurchaseDate,
-    averagePurchaseValue: totalPurchases > 0 ? totalAmountSpent / totalPurchases : 0,
+    totalPurchases: Number(dto.totalPurchases ?? 0),
+    totalAmountSpent: Number(dto.totalAmountSpent ?? 0),
+    lastPurchaseDate: dto.lastPurchaseDate ? String(dto.lastPurchaseDate) : null,
+    averagePurchaseValue: Number(dto.averagePurchaseValue ?? 0),
   }
 }
 
-function buildTopProducts(customerId: string): TopPurchasedProduct[] {
-  const sales = getCustomerSales(customerId)
-  const saleIds = new Set(sales.map((sale) => sale.id))
-  const items = loadSaleItems().filter((item) => saleIds.has(item.saleId))
-
-  const counts = new Map<string, { productName: string; variantName: string; count: number }>()
-
-  for (const item of items) {
-    const key = `${item.productName}::${item.variantName}`
-    const existing = counts.get(key)
-    if (existing) {
-      existing.count += item.quantity
-    } else {
-      counts.set(key, {
-        productName: item.productName,
-        variantName: item.variantName,
-        count: item.quantity,
-      })
-    }
-  }
-
-  return [...counts.values()]
-    .sort((left, right) => right.count - left.count)
-    .slice(0, 5)
-    .map((entry, index) => ({
-      rank: index + 1,
-      productName: entry.productName,
-      variantName: entry.variantName,
-      purchaseCount: entry.count,
-    }))
-}
-
-function enrichListItem(customer: Customer): CustomerListItem {
-  const stats = buildCustomerStats(customer.id)
+function mapTopPurchasedProduct(dto: Record<string, unknown>): TopPurchasedProduct {
   return {
-    ...customer,
-    totalPurchases: stats.totalPurchases,
-    totalAmountSpent: stats.totalAmountSpent,
+    rank: Number(dto.rank ?? 0),
+    productName: String(dto.productName ?? ''),
+    variantName: String(dto.variantName ?? ''),
+    purchaseCount: Number(dto.purchaseCount ?? 0),
   }
 }
 
-function filterCustomers(customers: Customer[], filters: CustomerListFilters): Customer[] {
-  const search = filters.search?.trim().toLowerCase()
-
-  return customers.filter((customer) => {
-    const matchesSearch =
-      !search ||
-      customer.fullName.toLowerCase().includes(search) ||
-      customer.phoneNumber.toLowerCase().includes(search) ||
-      customer.customerCode.toLowerCase().includes(search) ||
-      customer.email.toLowerCase().includes(search)
-
-    const matchesStatus =
-      !filters.status ||
-      filters.status === 'all' ||
-      (filters.status === 'new' ? isNewCustomer(customer) && customer.status === 'active' : customer.status === filters.status)
-
-    return matchesSearch && matchesStatus
-  })
+function mapCustomerPurchase(dto: Record<string, unknown>): CustomerPurchase {
+  const paymentMethod = dto.paymentMethod
+  return {
+    id: String(dto.id),
+    saleId: String(dto.saleId),
+    receiptNumber: String(dto.receiptNumber ?? ''),
+    saleDate: String(dto.saleDate ?? new Date().toISOString()),
+    itemsPurchased: Number(dto.itemsPurchased ?? 0),
+    itemSummary: String(dto.itemSummary ?? ''),
+    paymentMethod:
+      typeof paymentMethod === 'number' || typeof paymentMethod === 'string'
+        ? fromPaymentMethod(paymentMethod)
+        : (String(paymentMethod ?? 'cash').toLowerCase().replace(' ', '_') as PaymentMethod),
+    totalAmount: Number(dto.totalAmount ?? 0),
+  }
 }
 
-function filterPurchases(
-  purchases: CustomerPurchase[],
-  filters: CustomerPurchaseFilters,
-): CustomerPurchase[] {
-  return purchases.filter((purchase) => {
-    const saleDate = new Date(purchase.saleDate)
-    const matchesFrom = !filters.dateFrom || saleDate >= new Date(filters.dateFrom)
-    const matchesTo = !filters.dateTo || saleDate <= new Date(`${filters.dateTo}T23:59:59`)
-    const matchesPayment =
-      !filters.paymentMethod ||
-      filters.paymentMethod === 'all' ||
-      purchase.paymentMethod === filters.paymentMethod
+function mapCustomerDetail(dto: Record<string, unknown>): CustomerDetail {
+  const base = mapCustomerListItem(dto)
+  const stats = mapCustomerStats((dto.stats as Record<string, unknown>) ?? {})
+  const topProducts = Array.isArray(dto.topProducts)
+    ? dto.topProducts.map((item) => mapTopPurchasedProduct(item as Record<string, unknown>))
+    : []
+  const recentPurchases = Array.isArray(dto.recentPurchases)
+    ? dto.recentPurchases.map((item) => mapCustomerPurchase(item as Record<string, unknown>))
+    : []
 
-    return matchesFrom && matchesTo && matchesPayment
-  })
+  return { ...base, stats, topProducts, recentPurchases }
+}
+
+function mapCustomerOption(dto: Record<string, unknown>): CustomerOption {
+  return {
+    id: String(dto.id),
+    name: String(dto.name ?? dto.customerName ?? ''),
+    phone: String(dto.phone ?? dto.phoneNumber ?? ''),
+  }
+}
+
+function buildCustomerQueryParams(filters: CustomerListFilters): Record<string, string | number | boolean> {
+  const params: Record<string, string | number | boolean> = {
+    page: filters.page ?? 1,
+    pageSize: filters.limit ?? 10,
+  }
+
+  if (filters.search?.trim()) {
+    params.search = filters.search.trim()
+  }
+
+  if (filters.status === 'active') {
+    params.isActive = true
+  } else if (filters.status === 'inactive') {
+    params.isActive = false
+  }
+
+  return params
+}
+
+function buildPurchaseQueryParams(filters: CustomerPurchaseFilters): Record<string, string | number> {
+  const params: Record<string, string | number> = {
+    page: filters.page ?? 1,
+    pageSize: filters.limit ?? 10,
+  }
+
+  if (filters.dateFrom) {
+    params.dateFrom = filters.dateFrom
+  }
+
+  if (filters.dateTo) {
+    params.dateTo = filters.dateTo
+  }
+
+  if (filters.paymentMethod && filters.paymentMethod !== 'all') {
+    params.paymentMethod = filters.paymentMethod
+  }
+
+  return params
+}
+
+function toCreateCustomerPayload(input: CreateCustomerInput) {
+  return {
+    customerName: input.fullName,
+    phoneNumber: input.phoneNumber,
+    address: input.address || undefined,
+    isActive: input.status !== 'inactive',
+  }
+}
+
+function toUpdateCustomerPayload(input: UpdateCustomerInput, current: Customer) {
+  return {
+    customerName: input.fullName ?? current.fullName,
+    phoneNumber: input.phoneNumber ?? current.phoneNumber,
+    address: input.address ?? current.address,
+    isActive: (input.status ?? current.status) !== 'inactive',
+  }
 }
 
 export const customerService = {
   async getCustomers(filters: CustomerListFilters = {}): Promise<CustomerListResult> {
-    await delay()
+    const result = await apiGet<PagedResult<Record<string, unknown>>>(API_ENDPOINTS.customers, {
+      params: buildCustomerQueryParams(filters),
+    })
 
-    const page = filters.page ?? 1
-    const limit = filters.limit ?? 10
-    const filtered = filterCustomers(loadCustomers(), filters).sort(
-      (left, right) => new Date(right.registrationDate).getTime() - new Date(left.registrationDate).getTime(),
-    )
-
-    const total = filtered.length
-    const totalPages = Math.max(1, Math.ceil(total / limit))
-    const start = (page - 1) * limit
-
+    const paged = toPagedMeta(result, filters.limit ?? 10)
     return {
-      data: filtered.slice(start, start + limit).map(enrichListItem),
-      meta: { page, limit, total, totalPages },
+      data: paged.data.map((item) => mapCustomerListItem(item)),
+      meta: paged.meta,
     }
   },
 
   async getCustomerSummary(): Promise<CustomerDashboardSummary> {
-    await delay(150)
-
-    const customers = loadCustomers()
-    const enriched = customers.map(enrichListItem)
-    const startOfMonth = new Date()
-    startOfMonth.setDate(1)
-    startOfMonth.setHours(0, 0, 0, 0)
-
-    const newCustomersThisMonth = customers.filter(
-      (customer) => new Date(customer.registrationDate) >= startOfMonth,
-    ).length
-
-    const topCustomers = [...enriched]
-      .sort((left, right) => right.totalPurchases - left.totalPurchases)
-      .slice(0, 5)
-      .map((customer) => ({
-        id: customer.id,
-        customerCode: customer.customerCode,
-        fullName: customer.fullName,
-        totalPurchases: customer.totalPurchases,
-      }))
-
-    const highestSpendingCustomers = [...enriched]
-      .sort((left, right) => right.totalAmountSpent - left.totalAmountSpent)
-      .slice(0, 5)
-      .map((customer) => ({
-        id: customer.id,
-        customerCode: customer.customerCode,
-        fullName: customer.fullName,
-        totalAmountSpent: customer.totalAmountSpent,
-      }))
+    const result = await apiGet<Record<string, unknown>>(`${API_ENDPOINTS.customers}/summary`)
 
     return {
-      totalCustomers: customers.length,
-      newCustomersThisMonth,
-      topCustomers,
-      highestSpendingCustomers,
+      totalCustomers: Number(result.totalCustomers ?? 0),
+      newCustomersThisMonth: Number(result.newCustomersThisMonth ?? 0),
+      topCustomers: Array.isArray(result.topCustomers)
+        ? result.topCustomers.map((item) => {
+            const dto = item as Record<string, unknown>
+            return {
+              id: String(dto.id),
+              customerCode: String(dto.customerCode ?? ''),
+              fullName: String(dto.customerName ?? dto.fullName ?? ''),
+              totalPurchases: Number(dto.totalPurchases ?? 0),
+            }
+          })
+        : [],
+      highestSpendingCustomers: Array.isArray(result.highestSpendingCustomers)
+        ? result.highestSpendingCustomers.map((item) => {
+            const dto = item as Record<string, unknown>
+            return {
+              id: String(dto.id),
+              customerCode: String(dto.customerCode ?? ''),
+              fullName: String(dto.customerName ?? dto.fullName ?? ''),
+              totalAmountSpent: Number(dto.totalAmountSpent ?? 0),
+            }
+          })
+        : [],
     }
   },
 
   async getCustomerById(id: string): Promise<CustomerDetail | null> {
-    await delay(150)
-
-    const customer = loadCustomers().find((entry) => entry.id === id)
-    if (!customer) return null
-
-    const sales = getCustomerSales(id).sort(
-      (left, right) => new Date(right.saleDate).getTime() - new Date(left.saleDate).getTime(),
-    )
-    const items = loadSaleItems()
-
-    return {
-      ...customer,
-      stats: buildCustomerStats(id),
-      topProducts: buildTopProducts(id),
-      recentPurchases: sales.slice(0, 5).map((sale) => buildPurchaseRecord(sale, items)),
-    }
+    const result = await apiGet<Record<string, unknown>>(API_ENDPOINTS.customer(id))
+    return mapCustomerDetail(result)
   },
 
   async getCustomerOptions(): Promise<CustomerOption[]> {
-    await delay(100)
-
-    return loadCustomers()
-      .filter((customer) => customer.status === 'active')
-      .map((customer) => ({
-        id: customer.id,
-        name: customer.fullName,
-        phone: customer.phoneNumber,
-      }))
-      .sort((left, right) => left.name.localeCompare(right.name))
+    const result = await apiGet<Record<string, unknown>[]>(API_ENDPOINTS.customerOptions)
+    return result.map((item) => mapCustomerOption(item))
   },
 
   async createCustomer(input: CreateCustomerInput): Promise<CustomerDetail> {
-    await delay()
-
-    const customer: Customer = {
-      id: crypto.randomUUID(),
-      customerCode: generateCustomerCode(),
-      fullName: input.fullName,
-      phoneNumber: input.phoneNumber,
-      email: input.email ?? '',
-      address: input.address ?? '',
-      city: input.city ?? '',
-      notes: input.notes ?? '',
-      registrationDate: new Date().toISOString(),
-      status: input.status ?? 'active',
-    }
-
-    saveCustomers([customer, ...loadCustomers()])
-    return (await this.getCustomerById(customer.id))!
+    const result = await apiPost<Record<string, unknown>>(
+      API_ENDPOINTS.customers,
+      toCreateCustomerPayload(input),
+    )
+    return mapCustomerDetail(result)
   },
 
   async createQuickCustomer(fullName: string, phoneNumber: string): Promise<Customer> {
-    await delay(100)
-
-    const customer: Customer = {
-      id: crypto.randomUUID(),
-      customerCode: generateCustomerCode(),
-      fullName,
+    const result = await apiPost<Record<string, unknown>>(API_ENDPOINTS.customers, {
+      customerName: fullName,
       phoneNumber,
-      email: '',
-      address: '',
-      city: '',
-      notes: 'Created from POS checkout.',
-      registrationDate: new Date().toISOString(),
-      status: 'active',
-    }
-
-    saveCustomers([customer, ...loadCustomers()])
-    return customer
+      isActive: true,
+    })
+    return mapCustomerListItem(result)
   },
 
   async updateCustomer(id: string, input: UpdateCustomerInput): Promise<CustomerDetail> {
-    await delay()
+    const existing = await apiGet<Record<string, unknown>>(API_ENDPOINTS.customer(id))
+    const current = mapCustomerListItem(existing)
 
-    const customers = loadCustomers()
-    const index = customers.findIndex((entry) => entry.id === id)
-    if (index === -1) throw new Error('Customer not found.')
-
-    customers[index] = { ...customers[index], ...input }
-    saveCustomers(customers)
-
-    return (await this.getCustomerById(id))!
+    const result = await apiPut<Record<string, unknown>>(
+      API_ENDPOINTS.customer(id),
+      toUpdateCustomerPayload(input, current),
+    )
+    return mapCustomerDetail(result)
   },
 
   async deleteCustomer(id: string): Promise<void> {
-    await delay()
-
-    const sales = getCustomerSales(id)
-    if (sales.length > 0) {
-      throw new Error('Cannot delete a customer with purchase history.')
-    }
-
-    const customers = loadCustomers().filter((entry) => entry.id !== id)
-    if (customers.length === loadCustomers().length) {
-      throw new Error('Customer not found.')
-    }
-
-    saveCustomers(customers)
+    await apiDelete(API_ENDPOINTS.customer(id))
   },
 
   async getCustomerPurchases(
     customerId: string,
     filters: CustomerPurchaseFilters = {},
   ): Promise<CustomerPurchaseHistoryResult> {
-    await delay()
-
-    const page = filters.page ?? 1
-    const limit = filters.limit ?? 10
-    const sales = getCustomerSales(customerId).sort(
-      (left, right) => new Date(right.saleDate).getTime() - new Date(left.saleDate).getTime(),
+    const result = await apiGet<Record<string, unknown>>(
+      `${API_ENDPOINTS.customer(customerId)}/purchases`,
+      { params: buildPurchaseQueryParams(filters) },
     )
-    const items = loadSaleItems()
-    const purchases = sales.map((sale) => buildPurchaseRecord(sale, items))
-    const filtered = filterPurchases(purchases, filters)
 
-    const totalRevenue = filtered.reduce((sum, purchase) => sum + purchase.totalAmount, 0)
-    const totalPurchases = filtered.length
-
-    const total = filtered.length
-    const totalPages = Math.max(1, Math.ceil(total / limit))
-    const start = (page - 1) * limit
+    const summary = (result.summary as Record<string, unknown>) ?? {}
+    const purchases = Array.isArray(result.purchases)
+      ? result.purchases.map((item) => mapCustomerPurchase(item as Record<string, unknown>))
+      : []
+    const topProducts = Array.isArray(result.topProducts)
+      ? result.topProducts.map((item) => mapTopPurchasedProduct(item as Record<string, unknown>))
+      : []
 
     return {
-      purchases: filtered.slice(start, start + limit),
+      purchases,
       summary: {
-        totalPurchases,
-        totalRevenue,
-        averageOrderValue: totalPurchases > 0 ? totalRevenue / totalPurchases : 0,
+        totalPurchases: Number(summary.totalPurchases ?? 0),
+        totalRevenue: Number(summary.totalRevenue ?? 0),
+        averageOrderValue: Number(summary.averageOrderValue ?? 0),
       },
-      topProducts: buildTopProducts(customerId),
-      meta: { page, limit, total, totalPages },
+      topProducts,
+      meta: {
+        page: Number(result.page ?? filters.page ?? 1),
+        limit: Number(result.pageSize ?? filters.limit ?? 10),
+        total: Number(result.totalCount ?? purchases.length),
+        totalPages: Number(result.totalPages ?? 1),
+      },
     }
   },
 }
 
-export function getCustomerDisplayName(customerId: string | null): string | null {
-  if (!customerId) return null
-  const customer = loadCustomers().find((entry) => entry.id === customerId)
-  return customer?.fullName ?? null
+export function getCustomerDisplayName(_customerId: string | null): string | null {
+  return null
 }
 
-export function getCustomerPhone(customerId: string | null): string | null {
-  if (!customerId) return null
-  const customer = loadCustomers().find((entry) => entry.id === customerId)
-  return customer?.phoneNumber ?? null
+export function getCustomerPhone(_customerId: string | null): string | null {
+  return null
 }

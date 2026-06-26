@@ -5,7 +5,7 @@ import { SupplierChart } from '@/features/reports/components/ReportCharts'
 import { ReportPageLayout } from '@/features/reports/components/ReportPageLayout'
 import { ReportSummaryCards } from '@/features/reports/components/ReportSummaryCards'
 import { ReportTable } from '@/features/reports/components/ReportTable'
-import type { ReportFilters } from '@/features/reports/types'
+import type { ReportFilters, ReportTableColumn, SupplierReportRow } from '@/features/reports/types'
 import { useSupplierReport } from '@/features/reports/hooks/use-reports'
 import { reportFilterDefaults } from '@/services/reports/reportService'
 import { formatDate, formatNumber } from '@/lib/format'
@@ -84,14 +84,13 @@ export function SupplierReportPage() {
   )
 }
 
-const supplierColumns = [
+const supplierColumns: ReportTableColumn<SupplierReportRow>[] = [
   { key: 'supplierName', header: 'Supplier Name' },
-  { key: 'totalPurchases', header: 'Total Purchases', render: (row: { totalPurchases: number }) => formatNumber(row.totalPurchases) },
-  { key: 'totalQuantitySupplied', header: 'Qty Supplied', render: (row: { totalQuantitySupplied: number }) => formatNumber(row.totalQuantitySupplied) },
+  { key: 'totalPurchases', header: 'Total Purchases', render: (row) => formatNumber(row.totalPurchases) },
+  { key: 'totalQuantitySupplied', header: 'Qty Supplied', render: (row) => formatNumber(row.totalQuantitySupplied) },
   {
     key: 'lastSupplyDate',
     header: 'Last Supply Date',
-    render: (row: { lastSupplyDate: string | null }) =>
-      row.lastSupplyDate ? formatDate(row.lastSupplyDate) : '—',
+    render: (row) => (row.lastSupplyDate ? formatDate(row.lastSupplyDate) : '—'),
   },
-] as const
+]

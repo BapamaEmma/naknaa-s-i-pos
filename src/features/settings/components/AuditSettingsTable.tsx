@@ -30,7 +30,7 @@ export function AuditSettingsTable({ entries, isLoading }: AuditSettingsTablePro
   if (isLoading) {
     return (
       <div className="flex min-h-48 items-center justify-center rounded-xl border">
-        <LoadingSpinner />
+        <LoadingSpinner layout="inline" />
       </div>
     )
   }

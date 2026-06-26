@@ -9,7 +9,7 @@ interface ReportTableProps<T> {
   emptyMessage?: string
 }
 
-export function ReportTable<T extends Record<string, unknown>>({
+export function ReportTable<T extends object>({
   title,
   columns,
   rows,

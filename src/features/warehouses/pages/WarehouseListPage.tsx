@@ -70,10 +70,7 @@ export function WarehouseListPage() {
 
       <WarehouseStatsCards summary={summary} isLoading={summaryLoading} />
 
-      <div className="space-y-3">
-        <h2 className="text-lg font-semibold">Warehouse Inventory Report</h2>
-        <WarehouseInventoryReport rows={report} isLoading={reportLoading} />
-      </div>
+      <WarehouseInventoryReport rows={report} isLoading={reportLoading} />
 
       <WarehouseFilters filters={filters} onChange={setFilters} />
       <WarehouseTable

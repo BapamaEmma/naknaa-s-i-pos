@@ -51,12 +51,12 @@ const baseUserFields = {
   firstName: z.string().trim().min(1, 'First name is required'),
   lastName: z.string().trim().min(1, 'Last name is required'),
   username: optionalUsername,
-  email: z.string().trim().email('Enter a valid email address').or(z.literal('')),
+  email: z.string().trim().min(1, 'Email is required').email('Enter a valid email address'),
   phoneNumber: z.string().trim(),
   roleId: z.enum([USER_ROLES.ADMIN, USER_ROLES.CASHIER], {
     message: 'Role is required',
   }),
-  branchId: z.string().min(1, 'Branch is required'),
+  shopName: z.string().trim().min(1, 'Shop name is required'),
 }
 
 export const createUserFormSchema = z

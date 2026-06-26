@@ -1,17 +1,13 @@
-import { Navigate, useLocation } from 'react-router-dom'
-import { DEFAULT_AUTHENTICATED_ROUTE } from '@/constants/routes'
+import { Navigate } from 'react-router-dom'
+import { getDefaultAuthenticatedRoute } from '@/constants/routes'
 import { LoginForm } from '@/features/auth/components/LoginForm'
 import { useAuth } from '@/features/auth/hooks/use-auth'
 
 export function LoginPage() {
-  const { isAuthenticated } = useAuth()
-  const location = useLocation()
-  const redirectTo =
-    (location.state as { from?: { pathname?: string } } | null)?.from?.pathname ??
-    DEFAULT_AUTHENTICATED_ROUTE
+  const { isAuthenticated, user } = useAuth()
 
-  if (isAuthenticated) {
-    return <Navigate to={redirectTo} replace />
+  if (isAuthenticated && user) {
+    return <Navigate to={getDefaultAuthenticatedRoute(user.role)} replace />
   }
 
   return (

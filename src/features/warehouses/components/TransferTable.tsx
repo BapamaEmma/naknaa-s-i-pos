@@ -19,7 +19,7 @@ export function TransferTable({ data, isLoading }: TransferTableProps) {
   if (isLoading) {
     return (
       <div className="flex min-h-48 items-center justify-center">
-        <LoadingSpinner />
+        <LoadingSpinner layout="inline" />
       </div>
     )
   }

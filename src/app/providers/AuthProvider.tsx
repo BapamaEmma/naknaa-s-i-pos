@@ -1,58 +1,13 @@
 import { createContext, useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
-import { MOCK_CREDENTIALS } from '@/constants/auth'
-import { USER_ROLES, normalizeUserRole, type UserRole } from '@/constants/roles'
+import { STORAGE_KEYS } from '@/constants/api'
+import { isSupabaseAuthEnabled } from '@/constants/supabase'
+import { supabase } from '@/lib/supabase/client'
 import { authService } from '@/services/auth/authService'
-import { userService } from '@/services/users/userService'
 import type { AuthContextValue, LoginCredentials } from '@/types/auth'
 import type { User } from '@/types/user'
-import type { UserDetail } from '@/features/users/types'
+import type { UserRole } from '@/constants/roles'
 
 export const AuthContext = createContext<AuthContextValue | null>(null)
-
-const DEMO_ADMIN: User = {
-  id: 'user-admin-001',
-  email: 'admin@naknaa.com',
-  firstName: 'NakNaa',
-  lastName: 'Admin',
-  role: USER_ROLES.ADMIN,
-  branchId: 'branch-main',
-  isActive: true,
-  createdAt: new Date().toISOString(),
-  updatedAt: new Date().toISOString(),
-}
-
-function mapUserDetail(detail: UserDetail): User {
-  return {
-    id: detail.id,
-    email: detail.email,
-    firstName: detail.firstName,
-    lastName: detail.lastName,
-    role: normalizeUserRole(detail.roleId),
-    branchId: detail.branchId,
-    isActive: detail.status === 'active',
-    createdAt: detail.createdAt,
-    updatedAt: detail.updatedAt,
-  }
-}
-
-async function resolveLoginUser(credentials: LoginCredentials): Promise<User> {
-  const email = credentials.email.trim()
-
-  try {
-    const detail = await userService.authenticate(email, credentials.password)
-    return mapUserDetail(detail)
-  } catch (error) {
-    const isDemoAdmin =
-      email.toLowerCase() === DEMO_ADMIN.email &&
-      credentials.password === MOCK_CREDENTIALS.admin.password
-
-    if (isDemoAdmin) {
-      return { ...DEMO_ADMIN, email }
-    }
-
-    throw error
-  }
-}
 
 interface AuthProviderProps {
   children: ReactNode
@@ -60,40 +15,88 @@ interface AuthProviderProps {
 
 export function AuthProvider({ children }: AuthProviderProps) {
   const [user, setUser] = useState<User | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
+  const [isInitializing, setIsInitializing] = useState(true)
+  const [isLoggingIn, setIsLoggingIn] = useState(false)
 
   useEffect(() => {
-    const storedUser = authService.getStoredUser()
-    setUser(storedUser)
-    setIsLoading(false)
+    let isMounted = true
+
+    async function initializeAuth() {
+      const restoredUser = await authService.restoreSession()
+      if (isMounted) {
+        setUser(restoredUser)
+        setIsInitializing(false)
+      }
+    }
+
+    void initializeAuth()
+
+    return () => {
+      isMounted = false
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!isSupabaseAuthEnabled) {
+      return
+    }
+
+    const { data: subscription } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'SIGNED_OUT' || !session) {
+        authService.clearSession()
+        setUser(null)
+        return
+      }
+
+      if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'INITIAL_SESSION') {
+        localStorage.setItem(STORAGE_KEYS.ACCESS_TOKEN, session.access_token)
+        localStorage.setItem(STORAGE_KEYS.REFRESH_TOKEN, session.refresh_token)
+
+        try {
+          const profile = await authService.restoreSession()
+          setUser(profile)
+        } catch {
+          authService.clearSession()
+          setUser(null)
+        }
+      }
+    })
+
+    return () => {
+      subscription.subscription.unsubscribe()
+    }
+  }, [])
+
+  useEffect(() => {
+    const handleSessionExpired = () => {
+      authService.clearSession()
+      setUser(null)
+    }
+
+    window.addEventListener('auth:session-expired', handleSessionExpired)
+    return () => window.removeEventListener('auth:session-expired', handleSessionExpired)
   }, [])
 
   const login = useCallback(async (credentials: LoginCredentials) => {
-    setIsLoading(true)
+    setIsLoggingIn(true)
 
     try {
-      await new Promise((resolve) => setTimeout(resolve, 600))
-
-      const loggedInUser = await resolveLoginUser(credentials)
-
-      const mockResponse = {
-        user: loggedInUser,
-        tokens: {
-          accessToken: 'demo-access-token',
-          refreshToken: 'demo-refresh-token',
-        },
-      }
-
-      authService.persistSession(mockResponse)
-      setUser(mockResponse.user)
+      const session = await authService.login(credentials)
+      setUser(session.user)
+      return session
     } finally {
-      setIsLoading(false)
+      setIsLoggingIn(false)
     }
   }, [])
 
   const logout = useCallback(() => {
-    authService.clearSession()
+    void authService.logout()
     setUser(null)
+  }, [])
+
+  const refreshUser = useCallback(async () => {
+    const profile = await authService.refreshUserProfile()
+    setUser(profile)
   }, [])
 
   const hasRole = useCallback(
@@ -109,12 +112,14 @@ export function AuthProvider({ children }: AuthProviderProps) {
     () => ({
       user,
       isAuthenticated: Boolean(user),
-      isLoading,
+      isLoading: isInitializing,
+      isLoggingIn,
       login,
       logout,
+      refreshUser,
       hasRole,
     }),
-    [user, isLoading, login, logout, hasRole],
+    [user, isInitializing, isLoggingIn, login, logout, refreshUser, hasRole],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

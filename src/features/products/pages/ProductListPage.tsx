@@ -18,7 +18,7 @@ export function ProductListPage() {
   const [filters, setFilters] = useState<ProductListFilters>({
     page: 1,
     limit: 12,
-    status: 'all',
+    status: 'active',
   })
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [selectedProduct, setSelectedProduct] = useState<ProductListItem | null>(null)

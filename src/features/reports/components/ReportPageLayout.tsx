@@ -55,7 +55,7 @@ export function ReportPageLayout({
 
       {isLoading ? (
         <div className="flex min-h-48 items-center justify-center">
-          <LoadingSpinner />
+          <LoadingSpinner layout="inline" />
         </div>
       ) : (
         children

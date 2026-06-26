@@ -16,7 +16,11 @@ export function AddProductPage() {
 
   const handleSubmit = async (values: ProductWithPricingFormOutput) => {
     const { sellingPrice, initialStock, ...productInput } = values
-    const product = await createProduct.mutateAsync({ ...productInput, sku: '' })
+    const product = await createProduct.mutateAsync({
+      ...productInput,
+      sku: '',
+      sellingPrice,
+    })
 
     await variantService.createVariant(product.id, {
       name: 'Standard',

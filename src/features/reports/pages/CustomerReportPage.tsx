@@ -5,7 +5,7 @@ import { CustomerChart } from '@/features/reports/components/ReportCharts'
 import { ReportPageLayout } from '@/features/reports/components/ReportPageLayout'
 import { ReportSummaryCards } from '@/features/reports/components/ReportSummaryCards'
 import { ReportTable } from '@/features/reports/components/ReportTable'
-import type { ReportFilters } from '@/features/reports/types'
+import type { CustomerReportRow, ReportFilters, ReportTableColumn } from '@/features/reports/types'
 import { useCustomerReport } from '@/features/reports/hooks/use-reports'
 import { reportFilterDefaults } from '@/services/reports/reportService'
 import { formatCurrency, formatDate, formatNumber } from '@/lib/format'
@@ -80,14 +80,13 @@ export function CustomerReportPage() {
   )
 }
 
-const customerColumns = [
+const customerColumns: ReportTableColumn<CustomerReportRow>[] = [
   { key: 'customerName', header: 'Customer Name' },
-  { key: 'purchases', header: 'Purchases', render: (row: { purchases: number }) => formatNumber(row.purchases) },
-  { key: 'amountSpent', header: 'Amount Spent', render: (row: { amountSpent: number }) => formatCurrency(row.amountSpent) },
+  { key: 'purchases', header: 'Purchases', render: (row) => formatNumber(row.purchases) },
+  { key: 'amountSpent', header: 'Amount Spent', render: (row) => formatCurrency(row.amountSpent) },
   {
     key: 'lastPurchaseDate',
     header: 'Last Purchase',
-    render: (row: { lastPurchaseDate: string | null }) =>
-      row.lastPurchaseDate ? formatDate(row.lastPurchaseDate) : '—',
+    render: (row) => (row.lastPurchaseDate ? formatDate(row.lastPurchaseDate) : '—'),
   },
-] as const
+]

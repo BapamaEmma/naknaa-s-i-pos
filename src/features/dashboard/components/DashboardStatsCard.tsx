@@ -70,48 +70,67 @@ export function DashboardStatsCard({ kpi, index = 0 }: DashboardStatsCardProps) 
   const accent = accentStyles[index % accentStyles.length]
   const trendLabel =
     kpi.trend === 'up' ? 'Than Last Period' : kpi.trend === 'down' ? 'Than Last Period' : 'No Change'
+  const isEmptySalesMetric =
+    kpi.value === 0 &&
+    (kpi.id === 'today-sales' ||
+      kpi.id === 'today-transactions' ||
+      kpi.id === 'monthly-revenue')
+  const emptyHint =
+    kpi.id === 'today-sales' || kpi.id === 'today-transactions'
+      ? 'No sales today'
+      : kpi.id === 'monthly-revenue'
+        ? 'No sales this month'
+        : null
 
   return (
-    <div className="dashboard-card flex flex-col justify-between p-5 transition-transform duration-200 hover:-translate-y-0.5">
-      <div className="flex items-start justify-between gap-3">
-        <div className="space-y-1">
-          <p className="text-sm font-medium text-muted-foreground">{kpi.title}</p>
-          <p className="text-2xl font-bold tracking-tight text-foreground sm:text-[1.75rem]">
-            {kpi.formattedValue}
-          </p>
-        </div>
-        <div
-          className={cn(
-            'flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl shadow-sm',
-            accent.iconWrap,
-          )}
-        >
-          <Icon className="h-5 w-5" />
-        </div>
+    <div className="dashboard-card relative overflow-hidden p-5 transition-transform duration-200 hover:-translate-y-0.5">
+      <div
+        className={cn(
+          'absolute right-4 top-4 flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl shadow-sm',
+          accent.iconWrap,
+        )}
+      >
+        <Icon className="h-5 w-5" aria-hidden />
       </div>
 
-      <div className="mt-4 flex items-center gap-1.5 text-xs">
-        <TrendIcon
+      <div className="pr-14">
+        <p className="text-sm font-medium text-muted-foreground">{kpi.title}</p>
+        <p
           className={cn(
-            'h-3.5 w-3.5',
-            kpi.trend === 'up' && 'text-emerald-600',
-            kpi.trend === 'down' && 'text-red-500',
-            kpi.trend === 'neutral' && 'text-muted-foreground',
-          )}
-        />
-        <span
-          className={cn(
-            'font-semibold',
-            kpi.trend === 'up' && 'text-emerald-600',
-            kpi.trend === 'down' && 'text-red-500',
-            kpi.trend === 'neutral' && 'text-muted-foreground',
+            'mt-1 text-xl font-bold leading-tight tracking-tight sm:text-2xl',
+            isEmptySalesMetric ? 'text-muted-foreground' : 'text-foreground',
           )}
         >
-          {kpi.changePercent > 0 ? '+' : ''}
-          {kpi.changePercent}%
-        </span>
-        <span className="text-muted-foreground">{trendLabel}</span>
+          {kpi.formattedValue}
+        </p>
       </div>
+
+      {isEmptySalesMetric && emptyHint ? (
+        <p className="mt-4 pr-14 text-xs text-muted-foreground">{emptyHint}</p>
+      ) : (
+        <div className="mt-4 flex flex-wrap items-center gap-x-1.5 gap-y-1 pr-14 text-xs">
+          <TrendIcon
+            className={cn(
+              'h-3.5 w-3.5',
+              kpi.trend === 'up' && 'text-emerald-600',
+              kpi.trend === 'down' && 'text-red-500',
+              kpi.trend === 'neutral' && 'text-muted-foreground',
+            )}
+          />
+          <span
+            className={cn(
+              'font-semibold',
+              kpi.trend === 'up' && 'text-emerald-600',
+              kpi.trend === 'down' && 'text-red-500',
+              kpi.trend === 'neutral' && 'text-muted-foreground',
+            )}
+          >
+            {kpi.changePercent > 0 ? '+' : ''}
+            {kpi.changePercent}%
+          </span>
+          <span className="text-muted-foreground">{trendLabel}</span>
+        </div>
+      )}
     </div>
   )
 }

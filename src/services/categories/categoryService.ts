@@ -1,6 +1,3 @@
-import { delay, readStorage, writeStorage } from '@/services/products/storage'
-import { CATEGORY_STORAGE_KEY, SEED_CATEGORIES } from '@/services/categories/mock-data'
-import type { Product, ProductVariant } from '@/features/products/types'
 import type {
   Category,
   CategoryDetail,
@@ -12,63 +9,10 @@ import type {
   CreateCategoryInput,
   UpdateCategoryInput,
 } from '@/features/categories/types'
-import { MOCK_STORAGE_KEYS } from '@/services/products/storage'
-import { SEED_PRODUCTS, SEED_VARIANTS } from '@/services/products/mock-data'
-
-function loadCategories(): Category[] {
-  return readStorage(CATEGORY_STORAGE_KEY, SEED_CATEGORIES)
-}
-
-function saveCategories(categories: Category[]): void {
-  writeStorage(CATEGORY_STORAGE_KEY, categories)
-}
-
-function loadProducts(): Product[] {
-  return readStorage(MOCK_STORAGE_KEYS.PRODUCTS, SEED_PRODUCTS)
-}
-
-function loadVariants(): ProductVariant[] {
-  return readStorage(MOCK_STORAGE_KEYS.VARIANTS, SEED_VARIANTS)
-}
-
-function slugify(name: string): string {
-  return name
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-|-$/g, '')
-}
-
-function countProducts(categoryId: string): number {
-  return loadProducts().filter((product) => product.categoryId === categoryId).length
-}
-
-function buildStatistics(categoryId: string): CategoryStatistics {
-  const products = loadProducts().filter((product) => product.categoryId === categoryId)
-  const variants = loadVariants()
-
-  const lowStockProducts = products.filter((product) => {
-    const productVariants = variants.filter((variant) => variant.productId === product.id)
-    return productVariants.some((variant) => variant.currentStock <= variant.minimumStock)
-  }).length
-
-  return {
-    totalProducts: products.length,
-    activeProducts: products.filter((product) => product.isActive).length,
-    lowStockProducts,
-  }
-}
-
-function getCategoryProducts(categoryId: string): CategoryProductSummary[] {
-  return loadProducts()
-    .filter((product) => product.categoryId === categoryId)
-    .map((product) => ({
-      id: product.id,
-      name: product.name,
-      brand: product.brand,
-      isActive: product.isActive,
-    }))
-}
+import { API_ENDPOINTS } from '@/services/api/endpoints'
+import { apiDelete, apiGet, apiPost, apiPut } from '@/services/api/http'
+import { mapCategory, mapProductListItem } from '@/services/api/mappers'
+import type { PagedResult } from '@/services/api/types'
 
 function filterCategories(categories: Category[], filters: CategoryListFilters): Category[] {
   const search = filters.search?.trim().toLowerCase()
@@ -103,16 +47,67 @@ function sortCategories(categories: Category[], filters: CategoryListFilters): C
   })
 }
 
+async function fetchCategoryProductSummaries(categoryId: string): Promise<CategoryProductSummary[]> {
+  const result = await apiGet<PagedResult<Record<string, unknown>>>(API_ENDPOINTS.products, {
+    params: { categoryId, page: 1, pageSize: 500 },
+  })
+
+  return result.items.map((item) => {
+    const product = mapProductListItem(item)
+    return {
+      id: product.id,
+      name: product.name,
+      brand: product.brand,
+      isActive: product.isActive,
+    }
+  })
+}
+
+function buildStatistics(products: CategoryProductSummary[]): CategoryStatistics {
+  return {
+    totalProducts: products.length,
+    activeProducts: products.filter((product) => product.isActive).length,
+    lowStockProducts: 0,
+  }
+}
+
+function toCreateCategoryPayload(input: CreateCategoryInput) {
+  return {
+    name: input.name,
+    description: input.description,
+    isActive: input.isActive ?? true,
+  }
+}
+
+function toUpdateCategoryPayload(input: UpdateCategoryInput, current: Category) {
+  return {
+    name: input.name ?? current.name,
+    description: input.description ?? current.description,
+    isActive: input.isActive ?? current.isActive,
+  }
+}
+
 export const categoryService = {
   async getCategories(filters: CategoryListFilters = {}): Promise<CategoryListResult> {
-    await delay()
+    const [categories, productsResult] = await Promise.all([
+      this.getAllCategories(),
+      apiGet<PagedResult<Record<string, unknown>>>(API_ENDPOINTS.products, {
+        params: { page: 1, pageSize: 500 },
+      }),
+    ])
+
+    const countMap = new Map<string, number>()
+    for (const item of productsResult.items) {
+      const product = mapProductListItem(item)
+      countMap.set(product.categoryId, (countMap.get(product.categoryId) ?? 0) + 1)
+    }
 
     const page = filters.page ?? 1
     const limit = filters.limit ?? 10
-    const filtered = sortCategories(filterCategories(loadCategories(), filters), filters).map(
+    const filtered = sortCategories(filterCategories(categories, filters), filters).map(
       (category): CategoryListItem => ({
         ...category,
-        totalProducts: countProducts(category.id),
+        totalProducts: countMap.get(category.id) ?? 0,
       }),
     )
 
@@ -127,75 +122,42 @@ export const categoryService = {
   },
 
   async getAllCategories(): Promise<Category[]> {
-    await delay(150)
-    return loadCategories()
+    const result = await apiGet<Record<string, unknown>[]>(API_ENDPOINTS.categories)
+    return result.map((item) => mapCategory(item))
   },
 
   async getCategoryById(id: string): Promise<CategoryDetail | null> {
-    await delay(200)
-
-    const category = loadCategories().find((item) => item.id === id)
-    if (!category) return null
+    const result = await apiGet<Record<string, unknown>>(API_ENDPOINTS.category(id))
+    const category = mapCategory(result)
+    const products = await fetchCategoryProductSummaries(id)
 
     return {
       ...category,
-      products: getCategoryProducts(id),
-      statistics: buildStatistics(id),
+      products,
+      statistics: buildStatistics(products),
     }
   },
 
   async createCategory(input: CreateCategoryInput): Promise<Category> {
-    await delay()
-
-    const categories = loadCategories()
-    const now = new Date().toISOString()
-    const category: Category = {
-      ...input,
-      id: `cat-${slugify(input.name)}-${crypto.randomUUID().slice(0, 8)}`,
-      createdAt: now,
-      updatedAt: now,
-    }
-
-    saveCategories([category, ...categories])
-    return category
+    const result = await apiPost<Record<string, unknown>>(
+      API_ENDPOINTS.categories,
+      toCreateCategoryPayload(input),
+    )
+    return mapCategory(result)
   },
 
   async updateCategory(id: string, input: UpdateCategoryInput): Promise<Category> {
-    await delay()
+    const existing = await apiGet<Record<string, unknown>>(API_ENDPOINTS.category(id))
+    const current = mapCategory(existing)
 
-    const categories = loadCategories()
-    const index = categories.findIndex((category) => category.id === id)
-
-    if (index === -1) {
-      throw new Error('Category not found')
-    }
-
-    const updated: Category = {
-      ...categories[index],
-      ...input,
-      updatedAt: new Date().toISOString(),
-    }
-
-    categories[index] = updated
-    saveCategories(categories)
-    return updated
+    const result = await apiPut<Record<string, unknown>>(
+      API_ENDPOINTS.category(id),
+      toUpdateCategoryPayload(input, current),
+    )
+    return mapCategory(result)
   },
 
   async deleteCategory(id: string): Promise<void> {
-    await delay()
-
-    const productCount = countProducts(id)
-    if (productCount > 0) {
-      throw new Error('Cannot delete a category that has assigned products.')
-    }
-
-    const categories = loadCategories()
-    const nextCategories = categories.filter((category) => category.id !== id)
-
-    if (nextCategories.length === categories.length) {
-      throw new Error('Category not found')
-    }
-
-    saveCategories(nextCategories)
+    await apiDelete(API_ENDPOINTS.category(id))
   },
 }

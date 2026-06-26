@@ -6,7 +6,7 @@ import { InventoryChart } from '@/features/reports/components/ReportCharts'
 import { ReportPageLayout } from '@/features/reports/components/ReportPageLayout'
 import { ReportSummaryCards } from '@/features/reports/components/ReportSummaryCards'
 import { ReportTable } from '@/features/reports/components/ReportTable'
-import type { ReportFilters } from '@/features/reports/types'
+import type { InventoryReportRow, ReportFilters, ReportTableColumn } from '@/features/reports/types'
 import { useInventoryReport } from '@/features/reports/hooks/use-reports'
 import { reportFilterDefaults } from '@/services/reports/reportService'
 import { formatCurrency, formatNumber } from '@/lib/format'
@@ -125,10 +125,10 @@ export function InventoryReportPage() {
   )
 }
 
-const inventoryColumns = [
+const inventoryColumns: ReportTableColumn<InventoryReportRow>[] = [
   { key: 'productName', header: 'Product' },
   { key: 'categoryName', header: 'Category' },
   { key: 'warehouseName', header: 'Warehouse' },
-  { key: 'quantity', header: 'Quantity', render: (row: { quantity: number }) => formatNumber(row.quantity) },
-  { key: 'inventoryValue', header: 'Value', render: (row: { inventoryValue: number }) => formatCurrency(row.inventoryValue) },
-] as const
+  { key: 'quantity', header: 'Quantity', render: (row) => formatNumber(row.quantity) },
+  { key: 'inventoryValue', header: 'Value', render: (row) => formatCurrency(row.inventoryValue) },
+]

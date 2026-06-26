@@ -21,7 +21,10 @@ export function TopProductsTable({ products }: TopProductsTableProps) {
         <CardTitle>Best Selling Products</CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="overflow-x-auto">
+        {products.length === 0 ? (
+          <p className="text-sm text-muted-foreground">No product sales recorded this month yet.</p>
+        ) : (
+          <div className="overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>
@@ -47,6 +50,7 @@ export function TopProductsTable({ products }: TopProductsTableProps) {
             </TableBody>
           </Table>
         </div>
+        )}
       </CardContent>
     </Card>
   )

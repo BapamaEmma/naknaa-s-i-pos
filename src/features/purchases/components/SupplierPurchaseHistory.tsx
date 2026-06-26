@@ -19,7 +19,7 @@ export function SupplierPurchaseHistory({ items, isLoading }: SupplierPurchaseHi
   if (isLoading) {
     return (
       <div className="flex min-h-48 items-center justify-center rounded-xl border">
-        <LoadingSpinner />
+        <LoadingSpinner layout="inline" />
       </div>
     )
   }

@@ -69,7 +69,7 @@ export function ProductInfoCard({ product }: ProductInfoCardProps) {
             <div className="mt-3">
               <div className="rounded-lg border bg-muted/30 p-4">
                 <p className="text-xs text-muted-foreground">Selling Price</p>
-                <p className="mt-1 text-lg font-semibold text-primary">
+                <p className="mt-1 text-lg font-semibold text-destructive">
                   {formatPriceRange(pricing.sellingPrice.min, pricing.sellingPrice.max)}
                 </p>
               </div>

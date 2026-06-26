@@ -24,7 +24,7 @@ export function SalesTable({ data, isLoading }: SalesTableProps) {
   if (isLoading) {
     return (
       <div className="flex min-h-48 items-center justify-center rounded-lg border">
-        <LoadingSpinner />
+        <LoadingSpinner layout="inline" />
       </div>
     )
   }

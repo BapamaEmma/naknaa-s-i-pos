@@ -1,3 +1,13 @@
+import type { InventoryDashboardSummary } from '@/features/inventory/types'
+
+export const EMPTY_INVENTORY_SUMMARY: InventoryDashboardSummary = {
+  totalProducts: 0,
+  totalStockQuantity: 0,
+  inventoryValue: 0,
+  lowStockProducts: 0,
+  outOfStockProducts: 0,
+}
+
 export const INVENTORY_API_ENDPOINTS = {
   LIST: '/inventory',
   DETAIL: (id: string) => `/inventory/${id}`,
@@ -42,4 +52,4 @@ export const MOCK_SUPPLIERS = [
   'Local Vendor',
 ] as const
 
-export const DEFAULT_BRANCH_ID = 'branch-main'
+export const DEFAULT_BRANCH_ID = '22222222-2222-2222-2222-222222222201'

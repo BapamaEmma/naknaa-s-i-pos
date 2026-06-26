@@ -12,13 +12,18 @@ interface CustomerDashboardCardsProps {
 export function CustomerDashboardCards({ summary, isLoading }: CustomerDashboardCardsProps) {
   if (isLoading) {
     return (
-      <div className="flex min-h-32 items-center justify-center">
-        <LoadingSpinner />
-      </div>
+      <LoadingSpinner layout="cards" />
     )
   }
 
-  const topSpender = summary?.highestSpendingCustomers[0]
+  const topCustomer =
+    (summary?.totalCustomers ?? 0) > 0
+      ? summary?.topCustomers.find((customer) => customer.totalPurchases > 0)
+      : undefined
+  const topSpender =
+    (summary?.totalCustomers ?? 0) > 0
+      ? summary?.highestSpendingCustomers.find((customer) => customer.totalAmountSpent > 0)
+      : undefined
 
   return (
     <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -48,9 +53,9 @@ export function CustomerDashboardCards({ summary, isLoading }: CustomerDashboard
           <TrendingUp className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
-          <p className="text-lg font-bold">{summary?.topCustomers[0]?.fullName ?? '—'}</p>
+          <p className="text-lg font-bold">{topCustomer?.fullName ?? '—'}</p>
           <p className="text-xs text-muted-foreground">
-            {summary?.topCustomers[0]?.totalPurchases ?? 0} purchases
+            {topCustomer ? `${topCustomer.totalPurchases} purchases` : 'No purchases yet'}
           </p>
         </CardContent>
       </Card>
@@ -63,7 +68,7 @@ export function CustomerDashboardCards({ summary, isLoading }: CustomerDashboard
         <CardContent>
           <p className="text-lg font-bold">{topSpender?.fullName ?? '—'}</p>
           <p className="text-xs text-muted-foreground">
-            {topSpender ? formatCurrency(topSpender.totalAmountSpent) : '—'}
+            {topSpender ? formatCurrency(topSpender.totalAmountSpent) : 'No spending yet'}
           </p>
         </CardContent>
       </Card>

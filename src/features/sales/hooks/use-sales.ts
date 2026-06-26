@@ -47,6 +47,7 @@ export function usePosProducts(search: string, branchId: string) {
   return useQuery({
     queryKey: [QUERY_KEYS.SALES, 'products', search, branchId],
     queryFn: () => salesService.searchProducts(search, branchId),
+    retry: 1,
   })
 }
 

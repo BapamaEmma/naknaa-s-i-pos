@@ -19,7 +19,7 @@ export function TechnicianTable({ technicians, isLoading }: TechnicianTableProps
   if (isLoading) {
     return (
       <div className="flex min-h-48 items-center justify-center rounded-xl border bg-card">
-        <LoadingSpinner />
+        <LoadingSpinner layout="inline" />
       </div>
     )
   }

@@ -21,6 +21,7 @@ import { LoadingSpinner } from '@/components/shared/LoadingSpinner'
 import { ProductDetailsDialog } from '@/features/products/components/ProductDetailsDialog'
 import { PRODUCT_ROUTES } from '@/features/products/constants'
 import type { ProductListItem, ProductListResult } from '@/features/products/types'
+import { formatCurrency } from '@/lib/format'
 
 interface ProductGridProps {
   data?: ProductListResult
@@ -72,8 +73,8 @@ export function ProductGrid({ data, isLoading, onDelete }: ProductGridProps) {
 
   if (isLoading) {
     return (
-      <div className="flex min-h-64 items-center justify-center rounded-xl border bg-card">
-        <LoadingSpinner size="lg" />
+      <div className="rounded-xl border bg-card p-4">
+        <LoadingSpinner size="lg" layout="grid" />
       </div>
     )
   }
@@ -124,7 +125,10 @@ export function ProductGrid({ data, isLoading, onDelete }: ProductGridProps) {
                     <DropdownMenuSeparator />
                     <DropdownMenuItem
                       className="text-destructive focus:text-destructive"
-                      onSelect={() => onDelete(product)}
+                      onSelect={(event) => {
+                        event.preventDefault()
+                        onDelete(product)
+                      }}
                     >
                       <Trash2 className="h-4 w-4" />
                       Delete
@@ -150,6 +154,9 @@ export function ProductGrid({ data, isLoading, onDelete }: ProductGridProps) {
               <p className="text-sm text-muted-foreground">{product.categoryName}</p>
               <p className="text-sm">
                 <span className="text-muted-foreground">Brand:</span> {product.brand}
+              </p>
+              <p className="text-lg font-semibold text-destructive">
+                {formatCurrency(product.sellingPrice)}
               </p>
             </CardContent>
 

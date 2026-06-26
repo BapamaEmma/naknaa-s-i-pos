@@ -16,7 +16,7 @@ export {
 } from './hooks/use-sales'
 
 export { ProductSearch } from './components/ProductSearch'
-export { ProductResults } from './components/ProductResults'
+export { ProductGrid } from './components/ProductGrid'
 export { SalesCart } from './components/SalesCart'
 export { CustomerSelector } from './components/CustomerSelector'
 export { PaymentSelector } from './components/PaymentSelector'

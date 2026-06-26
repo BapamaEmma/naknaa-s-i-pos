@@ -18,7 +18,7 @@ import { PosCartPanel } from '@/features/sales/components/PosCartPanel'
 import { ProductGrid } from '@/features/sales/components/ProductGrid'
 import { ProductSearch } from '@/features/sales/components/ProductSearch'
 import { SalesStatsCards } from '@/features/sales/components/SalesStatsCards'
-import { DEFAULT_BRANCH_ID } from '@/features/inventory/constants'
+import { BACKEND_DEFAULT_BRANCH_ID } from '@/services/api/mappers'
 import { useInventoryBranches } from '@/features/inventory/hooks/use-inventory'
 import { WALK_IN_CUSTOMER, SALES_ROUTES } from '@/features/sales/constants'
 import {
@@ -36,7 +36,7 @@ export function PosSalesPage() {
   const navigate = useNavigate()
   const { user } = useAuth()
   const [search, setSearch] = useState('')
-  const [branchId, setBranchId] = useState(DEFAULT_BRANCH_ID)
+  const [branchId, setBranchId] = useState(BACKEND_DEFAULT_BRANCH_ID)
   const [cart, setCart] = useState<CartItem[]>([])
   const [cartOpen, setCartOpen] = useState(false)
   const [customerMode, setCustomerMode] = useState<CustomerMode>('walk_in')
@@ -49,12 +49,19 @@ export function PosSalesPage() {
   const [discount, setDiscount] = useState(0)
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [stockNotice, setStockNotice] = useState<string | null>(null)
 
   const { data: branches = [] } = useInventoryBranches()
   const { data: customers = [] } = useSalesCustomers()
   const { data: summary, isLoading: summaryLoading } = useSalesSummary()
-  const { data: products = [], isLoading: productsLoading } = usePosProducts(search, branchId)
+  const { data: products = [], isLoading: productsLoading, isError: productsError } = usePosProducts(search, branchId)
   const createSale = useCreateSale()
+
+  useEffect(() => {
+    if (branches.length > 0 && !branches.some((branch) => branch.id === branchId)) {
+      setBranchId(branches[0].id)
+    }
+  }, [branches, branchId])
 
   useEffect(() => {
     if (user) {
@@ -162,7 +169,14 @@ export function PosSalesPage() {
       }
       navigate(SALES_ROUTES.RECEIPT(sale.id))
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : 'Unable to complete sale.')
+      const message =
+        typeof caught === 'object' && caught && 'message' in caught
+          ? String((caught as { message?: string }).message ?? '')
+          : caught instanceof Error
+            ? caught.message
+            : ''
+
+      setError(message || 'Unable to complete sale.')
     }
   }
 
@@ -214,11 +228,31 @@ export function PosSalesPage() {
             </div>
           </div>
 
+          {productsError ? (
+            <p className="text-sm text-destructive">
+              Unable to load products. Restart the backend API and refresh this page.
+            </p>
+          ) : null}
+
+          {stockNotice ? (
+            <div className="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-900 dark:text-amber-100">
+              {stockNotice}
+            </div>
+          ) : null}
+
           <ProductGrid
             products={products}
             cartItems={cart}
             isLoading={productsLoading}
-            onAddToCart={addToCart}
+            onAddToCart={(product) => {
+              setStockNotice(null)
+              addToCart(product)
+            }}
+            onOutOfStock={(product) => {
+              setStockNotice(
+                `"${product.productName}" has no stock in the warehouse. Use Inventory → Stock In to add quantity before selling.`,
+              )
+            }}
           />
         </div>
 

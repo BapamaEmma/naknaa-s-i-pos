@@ -51,6 +51,7 @@ export interface ProductListFilters {
 export interface ProductListItem extends Product {
   categoryName: string
   variantCount: number
+  sellingPrice: number
 }
 
 export interface ProductListResult {

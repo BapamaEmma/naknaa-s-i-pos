@@ -33,7 +33,7 @@ export function ProductDetailsDialog({
       <DialogContent className="max-h-[90vh] max-w-3xl overflow-y-auto">
         {isLoading ? (
           <div className="flex min-h-48 items-center justify-center">
-            <LoadingSpinner size="lg" />
+            <LoadingSpinner size="lg" layout="table" />
           </div>
         ) : isError || !product ? (
           <>
